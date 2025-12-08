@@ -1,0 +1,35 @@
+{
+  "nats": {
+    "servers": ["nats://localhost:4222"],
+    "user": "${NATS_USER}",
+    "password": "${NATS_PASSWORD}"
+  },
+  "channels": [
+    {
+      "domain": "cytu.be",
+      "channel": "your_channel_here"
+    }
+  ],
+  "database": {
+    "path": "data/userstats.db"
+  },
+  "metrics": {
+    "port": 28282
+  },
+  "snapshots": {
+    "interval_seconds": 300
+  },
+  "kudos": {
+    "default_phrases": [
+      "lol",
+      "rofl",
+      "lmao",
+      "haha",
+      "😂",
+      "🤣",
+      "😆"
+    ]
+  },
+  "retry_attempts": 3,
+  "handler_timeout": 30.0
+}

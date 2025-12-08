@@ -1,0 +1,16 @@
+include README.md
+include LICENSE
+include QUERY_ENDPOINTS.md
+include METRICS_IMPLEMENTATION.md
+include requirements.txt
+include config.example.json
+include aliases.json
+include pyproject.toml
+
+recursive-include systemd *.service *.md
+recursive-include examples *.py
+recursive-include userstats *.py
+
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store

@@ -1,0 +1,12 @@
+# Kryten UserStats Service Dependencies
+# Tracks user statistics via NATS events
+
+# Core dependency - kryten-py library for CyTube/NATS integration
+kryten-py>=0.4.0
+
+# HTTP client for API requests
+aiohttp>=3.9.0
+
+# kryten-py brings these transitive dependencies:
+# - nats-py>=2.9.0 (NATS messaging)
+# - pydantic>=2.0.0 (data validation)

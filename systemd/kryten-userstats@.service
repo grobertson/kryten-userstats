@@ -1,0 +1,45 @@
+[Unit]
+Description=Kryten User Statistics Tracker (%i)
+Documentation=https://github.com/yourusername/kryten-userstats
+After=network.target nats.service
+Wants=nats.service
+
+[Service]
+Type=simple
+User=kryten
+Group=kryten
+WorkingDirectory=/opt/kryten-userstats
+ExecStart=/usr/bin/python3 -m userstats --config /etc/kryten-userstats/config-%i.json --log-level INFO
+
+# Environment variables (alternatively use EnvironmentFile)
+Environment="NATS_USER=your_nats_user"
+Environment="NATS_PASSWORD=your_nats_password"
+
+# Or use instance-specific environment file
+# EnvironmentFile=/etc/kryten-userstats/env-%i
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+StartLimitInterval=5min
+StartLimitBurst=3
+
+# Resource limits
+LimitNOFILE=4096
+MemoryMax=512M
+CPUQuota=50%
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kryten-userstats /var/log/kryten-userstats
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kryten-userstats-%i
+
+[Install]
+WantedBy=multi-user.target
