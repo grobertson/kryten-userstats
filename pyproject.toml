@@ -14,6 +14,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Communications :: Chat",
@@ -22,7 +23,7 @@ classifiers = [
 packages = [{include = "userstats"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 kryten-py = ">=0.2.3"
 aiohttp = "^3.9.0"
 

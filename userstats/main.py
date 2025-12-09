@@ -76,8 +76,9 @@ class UserStatsApp:
         
         try:
             # Construct bucket prefix to match Kryten-Robot naming
-            # Format: cytube_{domain}_{channel}_<type>
-            bucket_prefix = f"cytube_{domain.replace('.', '_')}_{channel}"
+            # Format: kryten_{channel}_<type>
+            # Channel name must be lowercase
+            bucket_prefix = f"kryten_{channel.lower()}"
             
             # Load userlist
             try:
@@ -118,46 +119,29 @@ class UserStatsApp:
                 self.logger.warning(f"Could not load emotes from KV store: {e}")
             
             # Load playlist (for media tracking context)
-            # Only load playlist if bot has moderator+ permissions (rank >= 2)
-            # CyTube restricts full playlist access to moderators and above
+            # If playlist is available in KV store, load it
             try:
-                # Query Kryten-Robot for user level
-                user_level_result = await self.client.get_user_level(channel, domain=domain, timeout=2.0)
+                playlist_json = await self.client.kv_get(f"{bucket_prefix}_playlist", "items", default=[], parse_json=True)
                 
-                if user_level_result.get("success"):
-                    user_rank = user_level_result.get("rank", 0)
-                    username = user_level_result.get("username", "unknown")
-                    self.logger.info(f"Bot user level: {username} (rank: {user_rank})")
+                if isinstance(playlist_json, list) and playlist_json:
+                    self.logger.info(f"Loaded {len(playlist_json)} playlist items from KV store")
                     
-                    if user_rank >= 2:
-                        # Bot has moderator+ permissions, load playlist
-                        playlist_json = await self.client.kv_get(f"{bucket_prefix}_playlist", "items", default=[], parse_json=True)
+                    # If there's a current media, track it
+                    # Find the first item (current playing)
+                    if playlist_json:
+                        current = playlist_json[0]
+                        media_title = current.get("title") or current.get("queueby", "Unknown")
+                        media_type = current.get("type", "")
+                        media_id = current.get("id", "")
                         
-                        if isinstance(playlist_json, list) and playlist_json:
-                            self.logger.info(f"Loaded {len(playlist_json)} playlist items from KV store")
-                            
-                            # If there's a current media, track it
-                            # Find the first item (current playing)
-                            if playlist_json:
-                                current = playlist_json[0]
-                                media_title = current.get("title") or current.get("queueby", "Unknown")
-                                media_type = current.get("type", "")
-                                media_id = current.get("id", "")
-                                
-                                self._current_media[channel] = {
-                                    'title': media_title,
-                                    'type': media_type,
-                                    'id': media_id
-                                }
-                                self.logger.info(f"Initialized current media: {media_title}")
-                        else:
-                            self.logger.info("No initial playlist found in KV store")
-                    else:
-                        self.logger.info(f"Skipping playlist load - insufficient permissions (rank: {user_rank}, need >= 2)")
+                        self._current_media[channel] = {
+                            'title': media_title,
+                            'type': media_type,
+                            'id': media_id
+                        }
+                        self.logger.info(f"Initialized current media: {media_title}")
                 else:
-                    error_msg = user_level_result.get("error", "Unknown error")
-                    self.logger.warning(f"Could not query user level: {error_msg}")
-                    self.logger.info("Skipping playlist load due to user level query failure")
+                    self.logger.info("No initial playlist found in KV store")
                     
             except Exception as e:
                 self.logger.warning(f"Could not load playlist from KV store: {e}")
@@ -244,9 +228,9 @@ class UserStatsApp:
         self.metrics_server = MetricsServer(self, metrics_port)
         await self.metrics_server.start()
         
-        # Initialize NATS publisher for stats queries (separate connection)
-        domain = self.config["channels"][0]["domain"]
-        self.nats_publisher = StatsPublisher(self, domain, self.config.get("nats", {}))
+        # Initialize NATS publisher for stats queries using existing KrytenClient
+        # NO separate NATS connection - reuses self.client
+        self.nats_publisher = StatsPublisher(self, self.client)
         await self.nats_publisher.connect()
         
         # Start population snapshot task

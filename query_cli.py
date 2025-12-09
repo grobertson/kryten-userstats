@@ -27,35 +27,54 @@ async def query_nats(subject: str, request: dict, timeout: float = 5.0) -> dict:
 
 async def cmd_user(args):
     """Query user statistics."""
-    request = {"username": args.username}
+    request = {
+        "service": "userstats",
+        "command": "user.stats",
+        "username": args.username
+    }
     if args.channel:
         request["channel"] = args.channel
     
-    subject = f"cytube.query.userstats.{args.domain}.user.stats"
+    subject = "kryten.userstats.command"
     result = await query_nats(subject, request)
-    print(json.dumps(result, indent=2))
+    
+    if result.get("success"):
+        print(json.dumps(result["data"], indent=2))
+    else:
+        print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+        sys.exit(1)
 
 
 async def cmd_leaderboard(args):
     """Query leaderboards."""
-    request = {"limit": args.limit}
+    request = {
+        "service": "userstats",
+        "command": f"leaderboard.{args.type}",
+        "limit": args.limit
+    }
     
-    if args.type == "messages":
-        subject = f"cytube.query.userstats.{args.domain}.leaderboard.messages"
-    elif args.type == "kudos":
-        subject = f"cytube.query.userstats.{args.domain}.leaderboard.kudos"
-    elif args.type == "emotes":
-        subject = f"cytube.query.userstats.{args.domain}.leaderboard.emotes"
-    else:
-        print(f"Unknown leaderboard type: {args.type}")
-        return
-    
+    subject = "kryten.userstats.command"
     result = await query_nats(subject, request)
+    
+    if result.get("success"):
+        print(json.dumps(result["data"], indent=2))
+    else:
+        print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+        sys.exit(1)
+        return
+    subject = "kryten.userstats.command"
+    result = await query_nats(subject, request)
+    
+    if not result.get("success"):
+        print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+        sys.exit(1)
+    
+    data = result["data"]
     
     # Pretty print leaderboard
     print(f"\n{args.type.upper()} LEADERBOARD (Top {args.limit})")
     print("=" * 50)
-    for i, entry in enumerate(result.get("leaderboard", []), 1):
+    for i, entry in enumerate(data, 1):
         if args.type == "emotes":
             print(f"{i:2d}. {entry['emote']:20s} - {entry['count']:,} uses")
         else:
@@ -64,60 +83,107 @@ async def cmd_leaderboard(args):
 
 async def cmd_channel(args):
     """Query channel statistics."""
+    subject = "kryten.userstats.command"
+    
     if args.query == "top":
-        request = {"channel": args.channel, "limit": args.limit}
-        subject = f"cytube.query.userstats.{args.domain}.channel.top_users"
+        request = {
+            "service": "userstats",
+            "command": "channel.top_users",
+            "channel": args.channel,
+            "limit": args.limit
+        }
         result = await query_nats(subject, request)
         
+        if not result.get("success"):
+            print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+        
+        data = result["data"]
         print(f"\nTOP USERS IN #{args.channel} (Top {args.limit})")
         print("=" * 50)
-        for i, user in enumerate(result.get("top_users", []), 1):
+        for i, user in enumerate(data, 1):
             print(f"{i:2d}. {user['username']:20s} - {user['count']:,} messages")
             
     elif args.query == "population":
-        request = {"channel": args.channel, "hours": args.hours}
-        subject = f"cytube.query.userstats.{args.domain}.channel.population"
+        request = {
+            "service": "userstats",
+            "command": "channel.population",
+            "channel": args.channel,
+            "hours": args.hours
+        }
         result = await query_nats(subject, request)
-        print(json.dumps(result, indent=2))
+        
+        if result.get("success"):
+            print(json.dumps(result["data"], indent=2))
+        else:
+            print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
         
     elif args.query == "media":
-        request = {"channel": args.channel, "limit": args.limit}
-        subject = f"cytube.query.userstats.{args.domain}.channel.media_history"
+        request = {
+            "service": "userstats",
+            "command": "channel.media_history",
+            "channel": args.channel,
+            "limit": args.limit
+        }
         result = await query_nats(subject, request)
         
+        if not result.get("success"):
+            print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+        
+        data = result["data"]
         print(f"\nRECENT MEDIA IN #{args.channel} (Last {args.limit})")
         print("=" * 50)
-        for i, media in enumerate(result.get("media_history", []), 1):
+        for i, media in enumerate(data, 1):
             print(f"{i:2d}. [{media['type']:2s}] {media['title']}")
             print(f"    {media['timestamp']}")
 
 
 async def cmd_system(args):
     """Query system statistics."""
+    subject = "kryten.userstats.command"
+    
     if args.query == "stats":
-        subject = f"cytube.query.userstats.{args.domain}.system.stats"
-        result = await query_nats(subject, {})
+        request = {
+            "service": "userstats",
+            "command": "system.stats"
+        }
+        result = await query_nats(subject, request)
         
+        if not result.get("success"):
+            print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+        
+        data = result["data"]
         print("\nSYSTEM STATISTICS")
         print("=" * 50)
-        print(f"Total Users:        {result.get('total_users', 0):,}")
-        print(f"Total Messages:     {result.get('total_messages', 0):,}")
-        print(f"Total PMs:          {result.get('total_pms', 0):,}")
-        print(f"Total Kudos:        {result.get('total_kudos', 0):,}")
-        print(f"Total Emotes:       {result.get('total_emotes', 0):,}")
-        print(f"Total Media:        {result.get('total_media_changes', 0):,}")
-        print(f"Active Sessions:    {result.get('active_sessions', 0):,}")
+        print(f"Total Users:        {data.get('total_users', 0):,}")
+        print(f"Total Messages:     {data.get('total_messages', 0):,}")
+        print(f"Total PMs:          {data.get('total_pms', 0):,}")
+        print(f"Total Kudos:        {data.get('total_kudos', 0):,}")
+        print(f"Total Emotes:       {data.get('total_emotes', 0):,}")
+        print(f"Total Media:        {data.get('total_media_changes', 0):,}")
+        print(f"Active Sessions:    {data.get('active_sessions', 0):,}")
         
     elif args.query == "health":
-        subject = f"cytube.query.userstats.{args.domain}.system.health"
-        result = await query_nats(subject, {})
+        request = {
+            "service": "userstats",
+            "command": "system.health"
+        }
+        result = await query_nats(subject, request)
         
+        if not result.get("success"):
+            print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+        
+        data = result["data"]
         print("\nSYSTEM HEALTH")
         print("=" * 50)
-        print(f"Service:            {result.get('service', 'unknown')}")
-        print(f"Status:             {result.get('status', 'unknown')}")
-        print(f"Database:           {'✓' if result.get('database_connected') else '✗'}")
-        print(f"NATS:               {'✓' if result.get('nats_connected') else '✗'}")
+        print(f"Service:            {data.get('service', 'unknown')}")
+        print(f"Status:             {data.get('status', 'unknown')}")
+        print(f"Database:           {'✓' if data.get('database_connected') else '✗'}")
+        print(f"NATS:               {'✓' if data.get('nats_connected') else '✗'}")
 
 
 def main():

@@ -40,14 +40,27 @@ curl http://localhost:28282/metrics
 
 ## NATS Query Endpoints
 
-All query subjects follow the pattern:
-```
-cytube.query.userstats.{domain}.{query_type}
+kryten-userstats uses the unified command pattern:
+
+**Subject:** `kryten.userstats.command`
+
+All requests follow this format:
+```json
+{
+  "service": "userstats",
+  "command": "{command_type}",
+  ... command-specific parameters ...
+}
 ```
 
-For domain `cytu.be`, queries are:
-```
-cytube.query.userstats.cytu.be.*
+All responses follow this format:
+```json
+{
+  "service": "userstats",
+  "command": "{command_type}",
+  "success": true,
+  "data": { ... } | "error": "error message"
+}
 ```
 
 ### User Queries
@@ -56,11 +69,13 @@ cytube.query.userstats.cytu.be.*
 
 Get all statistics for a user.
 
-**Subject:** `cytube.query.userstats.cytu.be.user.stats`
+**Command:** `user.stats`
 
 **Request:**
 ```json
 {
+  "service": "userstats",
+  "command": "user.stats",
   "username": "foo",
   "channel": "420grindhouse"  // optional, omit for all channels
 }
@@ -69,33 +84,38 @@ Get all statistics for a user.
 **Response:**
 ```json
 {
-  "username": "foo",
-  "aliases": ["foo_alt", "foo2"],
-  "messages": {
-    "420grindhouse": 1234
-  },
-  "pms": 56,
-  "activity": {
-    "420grindhouse": {
-      "total_seconds": 7200,
-      "active_seconds": 6500
-    }
-  },
-  "kudos_plusplus": 42,
-  "kudos_phrases": [
-    {"phrase": "lol", "count": 15},
-    {"phrase": "haha", "count": 8}
-  ],
-  "emotes": [
-    {"emote": "Kappa", "count": 89},
-    {"emote": "PogChamp", "count": 67}
-  ]
+  "service": "userstats",
+  "command": "user.stats",
+  "success": true,
+  "data": {
+    "username": "foo",
+    "aliases": ["foo_alt", "foo2"],
+    "messages": {
+      "420grindhouse": 1234
+    },
+    "pms": 56,
+    "activity": {
+      "420grindhouse": {
+        "total_seconds": 7200,
+        "active_seconds": 6500
+      }
+    },
+    "kudos_plusplus": 42,
+    "kudos_phrases": [
+      {"phrase": "lol", "count": 15},
+      {"phrase": "haha", "count": 8}
+    ],
+    "emotes": [
+      {"emote": "Kappa", "count": 89},
+      {"emote": "PogChamp", "count": 67}
+    ]
+  }
 }
 ```
 
 #### user.messages - Message Counts
 
-**Subject:** `cytube.query.userstats.cytu.be.user.messages`
+**Command:** `user.messages`
 
 **Request:**
 ```json
@@ -127,7 +147,7 @@ Get all statistics for a user.
 
 #### user.activity - Time Spent in Channel
 
-**Subject:** `cytube.query.userstats.cytu.be.user.activity`
+**Subject:** `kryten.query.userstats.user.activity`
 
 **Request:**
 ```json
@@ -149,7 +169,7 @@ Get all statistics for a user.
 
 #### user.kudos - Kudos Received
 
-**Subject:** `cytube.query.userstats.cytu.be.user.kudos`
+**Subject:** `kryten.query.userstats.user.kudos`
 
 **Request:**
 ```json
@@ -174,7 +194,7 @@ Get all statistics for a user.
 
 #### channel.top_users - Top Message Senders
 
-**Subject:** `cytube.query.userstats.cytu.be.channel.top_users`
+**Subject:** `kryten.query.userstats.channel.top_users`
 
 **Request:**
 ```json
@@ -197,7 +217,7 @@ Get all statistics for a user.
 
 #### channel.population - Population Snapshots
 
-**Subject:** `cytube.query.userstats.cytu.be.channel.population`
+**Subject:** `kryten.query.userstats.channel.population`
 
 **Request:**
 ```json
@@ -224,7 +244,7 @@ Get all statistics for a user.
 
 #### channel.media_history - Recent Media Changes
 
-**Subject:** `cytube.query.userstats.cytu.be.channel.media_history`
+**Subject:** `kryten.query.userstats.channel.media_history`
 
 **Request:**
 ```json
@@ -253,7 +273,7 @@ Get all statistics for a user.
 
 #### leaderboard.messages - Global Message Leaderboard
 
-**Subject:** `cytube.query.userstats.cytu.be.leaderboard.messages`
+**Subject:** `kryten.query.userstats.leaderboard.messages`
 
 **Request:**
 ```json
@@ -274,7 +294,7 @@ Get all statistics for a user.
 
 #### leaderboard.kudos - Global Kudos Leaderboard
 
-**Subject:** `cytube.query.userstats.cytu.be.leaderboard.kudos`
+**Subject:** `kryten.query.userstats.leaderboard.kudos`
 
 **Request:**
 ```json
@@ -295,7 +315,7 @@ Get all statistics for a user.
 
 #### leaderboard.emotes - Most Used Emotes
 
-**Subject:** `cytube.query.userstats.cytu.be.leaderboard.emotes`
+**Subject:** `kryten.query.userstats.leaderboard.emotes`
 
 **Request:**
 ```json
@@ -318,7 +338,7 @@ Get all statistics for a user.
 
 #### system.health - Service Health Status
 
-**Subject:** `cytube.query.userstats.cytu.be.system.health`
+**Subject:** `kryten.query.userstats.system.health`
 
 **Request:** `{}` (empty)
 
@@ -335,7 +355,7 @@ Get all statistics for a user.
 
 #### system.stats - Overall Statistics
 
-**Subject:** `cytube.query.userstats.cytu.be.system.stats`
+**Subject:** `kryten.query.userstats.system.stats`
 
 **Request:** `{}` (empty)
 
@@ -358,16 +378,16 @@ Get all statistics for a user.
 
 ```bash
 # Get user stats
-nats request cytube.query.userstats.cytu.be.user.stats '{"username":"foo"}'
+nats request kryten.userstats.command '{"service":"userstats","command":"user.stats","username":"foo"}'
 
 # Get channel leaderboard
-nats request cytube.query.userstats.cytu.be.channel.top_users '{"channel":"420grindhouse","limit":10}'
+nats request kryten.userstats.command '{"service":"userstats","command":"channel.top_users","channel":"420grindhouse","limit":10}'
 
 # Get system health
-nats request cytube.query.userstats.cytu.be.system.health '{}'
+nats request kryten.userstats.command '{"service":"userstats","command":"system.health"}'
 
 # Get global message leaderboard
-nats request cytube.query.userstats.cytu.be.leaderboard.messages '{"limit":20}'
+nats request kryten.userstats.command '{"service":"userstats","command":"leaderboard.messages","limit":20}'
 ```
 
 ### Using Python
@@ -381,19 +401,47 @@ async def query_user_stats(username: str):
     nc = NATS()
     await nc.connect("nats://localhost:4222")
     
-    request = json.dumps({"username": username})
+    request = json.dumps({
+        "service": "userstats",
+        "command": "user.stats",
+        "username": username
+    })
     response = await nc.request(
-        "cytube.query.userstats.cytu.be.user.stats",
+        "kryten.userstats.command",
         request.encode(),
         timeout=5.0
     )
     
-    stats = json.loads(response.data.decode())
-    print(json.dumps(stats, indent=2))
+    result = json.loads(response.data.decode())
+    print(json.dumps(result, indent=2))
     
     await nc.close()
 
 asyncio.run(query_user_stats("foo"))
+```
+
+### Using kryten-py Client
+
+```python
+from kryten import KrytenClient
+import asyncio
+
+async def query_stats():
+    config = KrytenConfig.from_file("config.json")
+    async with KrytenClient(config) as client:
+        # Using nats_request for direct command
+        response = await client.nats_request(
+            "kryten.userstats.command",
+            {
+                "service": "userstats",
+                "command": "user.stats",
+                "username": "alice"
+            },
+            timeout=2.0
+        )
+        print(response)
+
+asyncio.run(query_stats())
 ```
 
 ### Using in Dashboard

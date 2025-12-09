@@ -1,403 +1,302 @@
-"""Direct NATS publisher for statistics query responses.
+"""Statistics query responder using KrytenClient.
 
 This module handles publishing statistics data on userstats-owned NATS subjects.
-It uses direct NATS client access since this data is owned by userstats, not CyTube.
+It uses KrytenClient instead of direct NATS access, following the architectural
+rule that all NATS operations must go through kryten-py.
 """
 
-import asyncio
-import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
-import nats
-from nats.aio.client import Client as NATSClient
+from kryten import KrytenClient
 
 
 class StatsPublisher:
     """Publishes statistics data on NATS subjects owned by userstats."""
     
-    def __init__(self, app_reference, domain: str, nats_config: dict):
-        """Initialize NATS publisher.
+    def __init__(self, app_reference, client: KrytenClient):
+        """Initialize stats publisher using existing KrytenClient.
         
         Args:
             app_reference: Reference to UserStatsApp for accessing database
-            domain: CyTube domain (e.g., "cytu.be")
-            nats_config: NATS connection configuration
+            client: KrytenClient instance (already connected)
         """
         self.app = app_reference
-        self.domain = domain
-        self.nats_config = nats_config
+        self.client = client
         self.logger = logging.getLogger(__name__)
         
-        self._nats: Optional[NATSClient] = None
-        self._connected = False
         self._subscriptions = []
         
     async def connect(self) -> None:
-        """Connect to NATS and subscribe to query subjects."""
-        if self._connected:
-            self.logger.warning("Already connected to NATS")
-            return
-            
+        """Subscribe to unified command subject using KrytenClient.
+        
+        Single subject: kryten.userstats.command
+        Commands are routed via 'command' field in message payload.
+        """
         try:
-            self._nats = await nats.connect(
-                servers=self.nats_config.get("servers", ["nats://localhost:4222"]),
-                user=self.nats_config.get("user"),
-                password=self.nats_config.get("password"),
-                token=self.nats_config.get("token"),
-            )
+            subject = "kryten.userstats.command"
+            await self._subscribe(subject, self._handle_command)
             
-            self._connected = True
-            self.logger.info("Stats publisher connected to NATS")
-            
-            # Subscribe to query request subjects
-            # Pattern: userstats.query.{domain}.{query_type}
-            base = f"userstats.query.{self.domain}"
-            
-            # User queries
-            await self._subscribe(f"{base}.user.stats", self._handle_user_stats)
-            await self._subscribe(f"{base}.user.messages", self._handle_user_messages)
-            await self._subscribe(f"{base}.user.activity", self._handle_user_activity)
-            await self._subscribe(f"{base}.user.kudos", self._handle_user_kudos)
-            
-            # Channel queries
-            await self._subscribe(f"{base}.channel.top_users", self._handle_channel_top_users)
-            await self._subscribe(f"{base}.channel.population", self._handle_channel_population)
-            await self._subscribe(f"{base}.channel.media_history", self._handle_channel_media_history)
-            
-            # Leaderboard queries
-            await self._subscribe(f"{base}.leaderboard.messages", self._handle_leaderboard_messages)
-            await self._subscribe(f"{base}.leaderboard.kudos", self._handle_leaderboard_kudos)
-            await self._subscribe(f"{base}.leaderboard.emotes", self._handle_leaderboard_emotes)
-            
-            # System queries
-            await self._subscribe(f"{base}.system.health", self._handle_system_health)
-            await self._subscribe(f"{base}.system.stats", self._handle_system_stats)
-            
-            # Water mark queries
-            await self._subscribe(f"{base}.channel.watermarks", self._handle_channel_watermarks)
-            
-            # Movie voting queries
-            await self._subscribe(f"{base}.channel.movie_votes", self._handle_movie_votes)
-            
-            # Time-series data queries
-            await self._subscribe(f"{base}.timeseries.messages", self._handle_timeseries_messages)
-            await self._subscribe(f"{base}.timeseries.kudos", self._handle_timeseries_kudos)
-            
-            self.logger.info(f"Subscribed to {len(self._subscriptions)} query subjects")
+            self.logger.info(f"Subscribed to {subject}")
             
         except Exception as e:
-            self.logger.error(f"Failed to connect stats publisher to NATS: {e}", exc_info=True)
+            self.logger.error(f"Failed to subscribe to query subjects: {e}", exc_info=True)
             raise
             
     async def disconnect(self) -> None:
-        """Disconnect from NATS."""
-        if not self._connected or not self._nats:
-            return
-            
-        try:
-            for sub in self._subscriptions:
-                try:
-                    await sub.unsubscribe()
-                except Exception as e:
-                    self.logger.warning(f"Error unsubscribing: {e}")
-                    
-            self._subscriptions.clear()
-            
-            await self._nats.drain()
-            await self._nats.close()
-            
-            self._connected = False
-            self._nats = None
-            
-            self.logger.info("Stats publisher disconnected from NATS")
-            
-        except Exception as e:
-            self.logger.error(f"Error disconnecting stats publisher: {e}", exc_info=True)
+        """Disconnect is handled by KrytenClient.
+        
+        No need to manually unsubscribe - KrytenClient manages all subscriptions.
+        """
+        self.logger.info("Stats publisher cleanup (managed by KrytenClient)")
+        self._subscriptions.clear()
             
     async def _subscribe(self, subject: str, handler) -> None:
-        """Subscribe to a query subject."""
-        if not self._nats:
-            raise RuntimeError("NATS client not connected")
-            
-        sub = await self._nats.subscribe(subject, cb=handler)
+        """Subscribe to a query subject using KrytenClient's request-reply mechanism."""
+        sub = await self.client.subscribe_request_reply(subject, handler)
         self._subscriptions.append(sub)
         self.logger.debug(f"Subscribed to {subject}")
+    
+    async def _handle_command(self, request: dict) -> dict:
+        """Dispatch commands based on 'command' field in request.
         
-    async def _publish_response(self, reply_subject: str, data: dict) -> None:
-        """Publish response on reply subject."""
-        if not self._nats:
-            self.logger.error("Cannot publish: NATS not connected")
-            return
-            
-        try:
-            payload = json.dumps(data).encode('utf-8')
-            await self._nats.publish(reply_subject, payload)
-            self.logger.debug(f"Published response to {reply_subject}")
-        except Exception as e:
-            self.logger.error(f"Error publishing response: {e}", exc_info=True)
-            
-    # Query handlers
-    
-    async def _handle_user_stats(self, msg) -> None:
-        """Handle user.stats query - Get comprehensive user statistics."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            username = request.get('username')
-            channel = request.get('channel')
-            
-            if not username:
-                await self._publish_response(msg.reply, {"error": "username required"})
-                return
-                
-            stats = await self.app.db.get_user_stats(username, channel)
-            await self._publish_response(msg.reply, {"success": True, "data": stats})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling user.stats: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_user_messages(self, msg) -> None:
-        """Handle user.messages query - Get user message history."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            username = request.get('username')
-            channel = request.get('channel')
-            limit = request.get('limit', 100)
-            
-            if not username:
-                await self._publish_response(msg.reply, {"error": "username required"})
-                return
-                
-            messages = await self.app.db.get_user_message_count(username, channel)
-            await self._publish_response(msg.reply, {
-                "success": True, 
-                "data": {"username": username, "message_count": messages}
-            })
-            
-        except Exception as e:
-            self.logger.error(f"Error handling user.messages: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_user_activity(self, msg) -> None:
-        """Handle user.activity query - Get user activity time."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            username = request.get('username')
-            channel = request.get('channel')
-            
-            if not username:
-                await self._publish_response(msg.reply, {"error": "username required"})
-                return
-                
-            activity = await self.app.db.get_user_activity_time(username, channel)
-            await self._publish_response(msg.reply, {"success": True, "data": activity})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling user.activity: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_user_kudos(self, msg) -> None:
-        """Handle user.kudos query - Get user kudos received."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            username = request.get('username')
-            channel = request.get('channel')
-            
-            if not username:
-                await self._publish_response(msg.reply, {"error": "username required"})
-                return
-                
-            kudos = await self.app.db.get_user_kudos(username, channel)
-            await self._publish_response(msg.reply, {"success": True, "data": kudos})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling user.kudos: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_channel_top_users(self, msg) -> None:
-        """Handle channel.top_users query - Get most active users."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            limit = request.get('limit', 10)
-            
-            top_users = await self.app.db.get_top_users_by_messages(channel, limit)
-            await self._publish_response(msg.reply, {"success": True, "data": top_users})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling channel.top_users: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_channel_population(self, msg) -> None:
-        """Handle channel.population query - Get current/historical population."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            
-            population = await self.app.db.get_latest_population_snapshot(channel)
-            await self._publish_response(msg.reply, {"success": True, "data": population})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling channel.population: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_channel_media_history(self, msg) -> None:
-        """Handle channel.media_history query - Get media change history."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            limit = request.get('limit', 50)
-            
-            history = await self.app.db.get_recent_media_changes(channel, limit)
-            await self._publish_response(msg.reply, {"success": True, "data": history})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling channel.media_history: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_leaderboard_messages(self, msg) -> None:
-        """Handle leaderboard.messages query - Get message leaderboard."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            limit = request.get('limit', 10)
-            
-            leaderboard = await self.app.db.get_top_users_by_messages(channel, limit)
-            await self._publish_response(msg.reply, {"success": True, "data": leaderboard})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling leaderboard.messages: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_leaderboard_kudos(self, msg) -> None:
-        """Handle leaderboard.kudos query - Get kudos leaderboard."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            limit = request.get('limit', 10)
-            
-            leaderboard = await self.app.db.get_top_users_by_kudos(channel, limit)
-            await self._publish_response(msg.reply, {"success": True, "data": leaderboard})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling leaderboard.kudos: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_leaderboard_emotes(self, msg) -> None:
-        """Handle leaderboard.emotes query - Get emote usage leaderboard."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            limit = request.get('limit', 10)
-            
-            leaderboard = await self.app.db.get_top_emotes(channel, limit)
-            await self._publish_response(msg.reply, {"success": True, "data": leaderboard})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling leaderboard.emotes: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
-            
-    async def _handle_system_health(self, msg) -> None:
-        """Handle system.health query - Get service health status."""
-        try:
-            health = {
+        Request format:
+            {
+                "command": "user.stats" | "leaderboard.messages" | etc,
+                "service": "userstats",  # For routing/filtering (optional)
+                ... command-specific parameters ...
+            }
+        
+        Response format:
+            {
                 "service": "userstats",
-                "status": "healthy" if self.app._running else "unhealthy",
-                "uptime_seconds": 0,  # TODO: track uptime
-                "database_connected": bool(self.app.db),
-                "nats_connected": self._connected,
+                "command": "user.stats",
+                "success": true,
+                "data": { ... } | "error": "message"
             }
-            await self._publish_response(msg.reply, {"success": True, "data": health})
+        """
+        command = request.get('command')
+        
+        if not command:
+            return {
+                "service": "userstats",
+                "success": False,
+                "error": "Missing 'command' field"
+            }
+        
+        # Check service field for routing (other services can ignore)
+        service = request.get('service')
+        if service and service != 'userstats':
+            return {
+                "service": "userstats",
+                "success": False,
+                "error": f"Command intended for '{service}', not 'userstats'"
+            }
+        
+        # Dispatch to handler
+        handler_map = {
+            "user.stats": self._handle_user_stats,
+            "user.messages": self._handle_user_messages,
+            "user.activity": self._handle_user_activity,
+            "user.kudos": self._handle_user_kudos,
+            "channel.top_users": self._handle_channel_top_users,
+            "channel.population": self._handle_channel_population,
+            "channel.media_history": self._handle_channel_media_history,
+            "leaderboard.messages": self._handle_leaderboard_messages,
+            "leaderboard.kudos": self._handle_leaderboard_kudos,
+            "leaderboard.emotes": self._handle_leaderboard_emotes,
+            "system.health": self._handle_system_health,
+            "system.stats": self._handle_system_stats,
+            "channel.watermarks": self._handle_channel_watermarks,
+            "channel.movie_votes": self._handle_movie_votes,
+            "timeseries.messages": self._handle_timeseries_messages,
+            "timeseries.kudos": self._handle_timeseries_kudos,
+        }
+        
+        handler = handler_map.get(command)
+        if not handler:
+            return {
+                "service": "userstats",
+                "command": command,
+                "success": False,
+                "error": f"Unknown command: {command}"
+            }
+        
+        try:
+            result = await handler(request)
+            return {
+                "service": "userstats",
+                "command": command,
+                "success": True,
+                "data": result
+            }
+        except Exception as e:  # noqa: BLE001
+            self.logger.error(f"Error executing command '{command}': {e}", exc_info=True)
+            return {
+                "service": "userstats",
+                "command": command,
+                "success": False,
+                "error": str(e)
+            }
+        
+    # Query handlers - all return dicts with query results (wrapped by _handle_command)
+    
+    async def _handle_user_stats(self, request: dict) -> dict:
+        """Handle user.stats query - Get comprehensive user statistics."""
+        username = request.get('username')
+        channel = request.get('channel')
+        
+        if not username:
+            raise ValueError("username required")
             
-        except Exception as e:
-            self.logger.error(f"Error handling system.health: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
+        stats = await self.app.db.get_user_stats(username, channel)
+        return stats
             
-    async def _handle_system_stats(self, msg) -> None:
+    async def _handle_user_messages(self, request: dict) -> dict:
+        """Handle user.messages query - Get user message history."""
+        username = request.get('username')
+        channel = request.get('channel')
+        
+        if not username:
+            raise ValueError("username required")
+            
+        messages = await self.app.db.get_user_message_count(username, channel)
+        return {"username": username, "message_count": messages}
+            
+    async def _handle_user_activity(self, request: dict) -> dict:
+        """Handle user.activity query - Get user activity time."""
+        username = request.get('username')
+        channel = request.get('channel')
+        
+        if not username:
+            raise ValueError("username required")
+            
+        activity = await self.app.db.get_user_activity_time(username, channel)
+        return activity
+            
+    async def _handle_user_kudos(self, request: dict) -> dict:
+        """Handle user.kudos query - Get user kudos received."""
+        username = request.get('username')
+        channel = request.get('channel')
+        
+        if not username:
+            raise ValueError("username required")
+            
+        kudos = await self.app.db.get_user_kudos(username, channel)
+        return kudos
+            
+    async def _handle_channel_top_users(self, request: dict) -> dict:
+        """Handle channel.top_users query - Get most active users."""
+        channel = request.get('channel')
+        limit = request.get('limit', 10)
+        
+        top_users = await self.app.db.get_top_users_by_messages(channel, limit)
+        return top_users
+            
+    async def _handle_channel_population(self, request: dict) -> dict:
+        """Handle channel.population query - Get current/historical population."""
+        channel = request.get('channel')
+        
+        population = await self.app.db.get_latest_population_snapshot(channel)
+        return population
+            
+    async def _handle_channel_media_history(self, request: dict) -> dict:
+        """Handle channel.media_history query - Get media change history."""
+        channel = request.get('channel')
+        limit = request.get('limit', 50)
+        
+        history = await self.app.db.get_recent_media_changes(channel, limit)
+        return history
+            
+    async def _handle_leaderboard_messages(self, request: dict) -> dict:
+        """Handle leaderboard.messages query - Get message leaderboard."""
+        channel = request.get('channel')
+        limit = request.get('limit', 10)
+        
+        leaderboard = await self.app.db.get_top_users_by_messages(channel, limit)
+        return leaderboard
+            
+    async def _handle_leaderboard_kudos(self, request: dict) -> dict:
+        """Handle leaderboard.kudos query - Get kudos leaderboard."""
+        channel = request.get('channel')
+        limit = request.get('limit', 10)
+        
+        leaderboard = await self.app.db.get_top_users_by_kudos(channel, limit)
+        return leaderboard
+            
+    async def _handle_leaderboard_emotes(self, request: dict) -> dict:
+        """Handle leaderboard.emotes query - Get emote usage leaderboard."""
+        channel = request.get('channel')
+        limit = request.get('limit', 10)
+        
+        leaderboard = await self.app.db.get_top_emotes(channel, limit)
+        return leaderboard
+            
+    async def _handle_system_health(self, request: dict) -> dict:
+        """Handle system.health query - Get service health status."""
+        health = {
+            "service": "userstats",
+            "status": "healthy" if self.app._running else "unhealthy",
+            "uptime_seconds": 0,  # TODO: track uptime
+            "database_connected": bool(self.app.db),
+            "nats_connected": self.client._connected,
+        }
+        return health
+            
+    async def _handle_system_stats(self, request: dict) -> dict:
         """Handle system.stats query - Get aggregate statistics."""
-        try:
-            stats = {
-                "total_users": await self.app.db.get_total_users(),
-                "total_messages": await self.app.db.get_total_messages(),
-                "total_pms": await self.app.db.get_total_pms(),
-                "total_kudos": await self.app.db.get_total_kudos_plusplus(),
-                "total_emotes": await self.app.db.get_total_emote_usage(),
-                "total_media_changes": await self.app.db.get_total_media_changes(),
-            }
+        stats = {
+            "total_users": await self.app.db.get_total_users(),
+            "total_messages": await self.app.db.get_total_messages(),
+            "total_pms": await self.app.db.get_total_pms(),
+            "total_kudos": await self.app.db.get_total_kudos_plusplus(),
+            "total_emotes": await self.app.db.get_total_emote_usage(),
+            "total_media_changes": await self.app.db.get_total_media_changes(),
+        }
+        
+        if self.app.activity_tracker:
+            stats["active_sessions"] = self.app.activity_tracker.get_active_session_count()
             
-            if self.app.activity_tracker:
-                stats["active_sessions"] = self.app.activity_tracker.get_active_session_count()
-                
-            await self._publish_response(msg.reply, {"success": True, "data": stats})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling system.stats: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
+        return stats
 
-    async def _handle_channel_watermarks(self, msg) -> None:
+    async def _handle_channel_watermarks(self, request: dict) -> dict:
         """Handle channel.watermarks query - Get high/low user population marks."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            days = request.get('days')  # None for all time, or 1,3,7,30,90
+        channel = request.get('channel')
+        domain = request.get('domain', 'cytu.be')
+        days = request.get('days')
+        
+        if not channel:
+            raise ValueError("channel required")
             
-            if not channel:
-                await self._publish_response(msg.reply, {"error": "channel required"})
-                return
-                
-            watermarks = await self.app.db.get_water_marks(channel, self.domain, days)
-            await self._publish_response(msg.reply, {"success": True, "data": watermarks})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling channel.watermarks: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
+        watermarks = await self.app.db.get_water_marks(channel, domain, days)
+        return watermarks
     
-    async def _handle_movie_votes(self, msg) -> None:
+    async def _handle_movie_votes(self, request: dict) -> dict:
         """Handle channel.movie_votes query - Get movie voting statistics."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            media_title = request.get('media_title')  # Optional: specific movie
+        channel = request.get('channel')
+        domain = request.get('domain', 'cytu.be')
+        media_title = request.get('media_title')
+        
+        if not channel:
+            raise ValueError("channel required")
             
-            if not channel:
-                await self._publish_response(msg.reply, {"error": "channel required"})
-                return
-                
-            votes = await self.app.db.get_movie_votes(channel, self.domain, media_title)
-            await self._publish_response(msg.reply, {"success": True, "data": votes})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling movie_votes: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
+        votes = await self.app.db.get_movie_votes(channel, domain, media_title)
+        return votes
     
-    async def _handle_timeseries_messages(self, msg) -> None:
+    async def _handle_timeseries_messages(self, request: dict) -> dict:
         """Handle timeseries.messages query - Get message activity over time."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            start_time = request.get('start_time')
-            end_time = request.get('end_time')
+        channel = request.get('channel')
+        domain = request.get('domain', 'cytu.be')
+        start_time = request.get('start_time')
+        end_time = request.get('end_time')
+        
+        if not channel:
+            raise ValueError("channel required")
             
-            if not channel:
-                await self._publish_response(msg.reply, {"error": "channel required"})
-                return
-                
-            data = await self.app.db.get_time_series_messages(channel, self.domain, start_time, end_time)
-            await self._publish_response(msg.reply, {"success": True, "data": data})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling timeseries.messages: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
+        data = await self.app.db.get_time_series_messages(channel, domain, start_time, end_time)
+        return data
     
-    async def _handle_timeseries_kudos(self, msg) -> None:
+    async def _handle_timeseries_kudos(self, request: dict) -> dict:
         """Handle timeseries.kudos query - Get kudos activity over time."""
-        try:
-            request = json.loads(msg.data.decode('utf-8'))
-            channel = request.get('channel')
-            # TODO: implement time-series tracking for kudos
-            await self._publish_response(msg.reply, {"success": True, "data": []})
-            
-        except Exception as e:
-            self.logger.error(f"Error handling timeseries.kudos: {e}", exc_info=True)
-            await self._publish_response(msg.reply, {"error": str(e)})
+        # TODO: implement time-series tracking for kudos
+        return []

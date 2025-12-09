@@ -52,7 +52,9 @@ async def _load_initial_state(self, domain: str, channel: str) -> None:
     """Load initial channel state from NATS KV stores."""
     
     # Construct bucket names to match Kryten-Robot
-    bucket_prefix = f"cytube_{domain.replace('.', '_')}_{channel}"
+    # Format: kryten_{channel}_<type>
+    # Channel name must be lowercase
+    bucket_prefix = f"kryten_{channel.lower()}"
     
     # Load userlist
     kv_userlist = await get_kv_store(self.nats_client, f"{bucket_prefix}_userlist")
@@ -118,9 +120,9 @@ Kryten-Robot creates three KV buckets per channel:
   - Value: JSON array of media objects `[{title, type, id, duration, ...}, ...]`
 
 Example for channel `cytu.be/420grindhouse`:
-- `cytube_cytu_be_420grindhouse_userlist`
-- `cytube_cytu_be_420grindhouse_emotes`
-- `cytube_cytu_be_420grindhouse_playlist`
+- `kryten_420grindhouse_userlist`
+- `kryten_420grindhouse_emotes`
+- `kryten_420grindhouse_playlist`
 
 ## Synchronization Strategy
 
