@@ -500,9 +500,45 @@ async def main():
     
     # Parse arguments
     parser = argparse.ArgumentParser(description="User Statistics Tracker for CyTube")
-    parser.add_argument("--config", default="config.json", help="Configuration file path")
+    parser.add_argument(
+        "--config",
+        help="Configuration file path (default: /etc/kryten/kryten-userstats/config.json or ./config.json)"
+    )
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     args = parser.parse_args()
+    
+    # Determine config file path
+    if args.config:
+        config_path = Path(args.config)
+    else:
+        # Try default locations in order
+        default_paths = [
+            Path("/etc/kryten/kryten-userstats/config.json"),
+            Path("config.json")
+        ]
+        
+        config_path = None
+        for path in default_paths:
+            if path.exists() and path.is_file():
+                config_path = path
+                break
+        
+        if not config_path:
+            logger.error("No configuration file found.")
+            logger.error("  Searched:")
+            for path in default_paths:
+                logger.error(f"    - {path}")
+            logger.error("  Use --config to specify a custom path.")
+            sys.exit(1)
+    
+    # Validate config file exists
+    if not config_path.exists():
+        logger.error(f"Configuration file not found: {config_path}")
+        sys.exit(1)
+    
+    if not config_path.is_file():
+        logger.error(f"Configuration path is not a file: {config_path}")
+        sys.exit(1)
     
     # Setup logging
     logging.basicConfig(
@@ -513,7 +549,7 @@ async def main():
     logger = logging.getLogger(__name__)
     
     # Create application
-    app = UserStatsApp(args.config)
+    app = UserStatsApp(str(config_path))
     
     # Setup signal handlers for graceful shutdown
     shutdown_event = asyncio.Event()
