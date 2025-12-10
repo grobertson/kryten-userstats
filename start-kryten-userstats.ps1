@@ -228,7 +228,12 @@ Write-Host "Press Ctrl+C to stop" -ForegroundColor Gray
 Write-Host ""
 
 try {
-    & $VenvPython -m userstats $ConfigPath
+    $moduleArgs = @("-m", "userstats")
+    if (Test-Path $ConfigPath) {
+        $moduleArgs += @("--config", $ConfigPath)
+    }
+    
+    & $VenvPython @moduleArgs
     
     $exitCode = $LASTEXITCODE
     

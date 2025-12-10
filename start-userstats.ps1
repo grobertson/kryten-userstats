@@ -43,11 +43,13 @@ if (Test-Path $PidFile) {
     }
 }
 
-# Check if config file exists
-if (-not (Test-Path $ConfigPath)) {
-    Write-Error-Custom "Configuration file not found: $ConfigPath"
-    Write-Info "Copy config.example.json to config.json and configure it"
-    exit 1
+# Build config argument
+if (Test-Path $ConfigPath) {
+    $ConfigArg = @("--config", $ConfigPath)
+    Write-Info "Using config: $ConfigPath"
+} else {
+    $ConfigArg = @()
+    Write-Info "Using default config paths"
 }
 
 # Check for virtual environment
@@ -99,15 +101,15 @@ try {
 
 # Start the tracker
 Write-Info "Starting User Statistics Tracker..."
-Write-Info "Config: $ConfigPath"
 Write-Info "Log file: $LogFile"
 
 Push-Location $ScriptDir
 
 if ($Background) {
     # Start in background
+    $ProcessArgs = @("-m", "userstats") + $ConfigArg
     $Process = Start-Process -FilePath "python" `
-        -ArgumentList "-m", "userstats.main", "--config", $ConfigPath `
+        -ArgumentList $ProcessArgs `
         -RedirectStandardOutput $LogFile `
         -RedirectStandardError $LogFile `
         -NoNewWindow `
@@ -129,7 +131,8 @@ if ($Background) {
 } else {
     # Run in foreground
     Write-Info "Running in foreground (Ctrl+C to stop)..."
-    python -m userstats.main --config $ConfigPath
+    $ProcessArgs = @("-m", "userstats") + $ConfigArg
+    & python @ProcessArgs
 }
 
 Pop-Location

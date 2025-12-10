@@ -9,7 +9,9 @@ Type=simple
 User=kryten
 Group=kryten
 WorkingDirectory=/opt/kryten-userstats
-ExecStart=/usr/bin/python3 -m userstats --config /etc/kryten-userstats/config.json --log-level INFO
+# Uses default path /etc/kryten/kryten-userstats/config.json
+# Or specify custom path with: --config /path/to/config.json
+ExecStart=/usr/bin/python3 -m userstats --log-level INFO
 
 # Environment variables (alternatively use EnvironmentFile)
 Environment="NATS_USER=your_nats_user"

@@ -36,11 +36,13 @@ if [ -f "$PID_FILE" ]; then
     fi
 fi
 
-# Check if config file exists
-if [ ! -f "$CONFIG_PATH" ]; then
-    log_error "Configuration file not found: $CONFIG_PATH"
-    log_info "Copy config.example.json to config.json and configure it"
-    exit 1
+# Build config argument
+if [ -f "$CONFIG_PATH" ]; then
+    CONFIG_ARG="--config $CONFIG_PATH"
+    log_info "Using config: $CONFIG_PATH"
+else
+    CONFIG_ARG=""
+    log_info "Using default config paths"
 fi
 
 # Check for virtual environment
@@ -74,9 +76,8 @@ fi
 
 # Start the tracker
 log_info "Starting User Statistics Tracker..."
-log_info "Config: $CONFIG_PATH"
 log_info "Log file: $LOG_FILE"
 log_info "Press Ctrl+C to stop"
 
 cd "$SCRIPT_DIR"
-python -m userstats.main --config "$CONFIG_PATH" 2>&1 | tee -a "$LOG_FILE"
+python -m userstats $CONFIG_ARG 2>&1 | tee -a "$LOG_FILE"
