@@ -177,7 +177,10 @@ if ! check_kryten_py "$VENV_PYTHON"; then
     fi
 fi
 
-# Step 5: Run the application
+# Step 5: Clear PYTHONPATH to avoid conflicts with development versions
+export PYTHONPATH=""
+
+# Step 6: Run the application
 echo ""
 echo -e "\033[32mStarting Kryten User Statistics Tracker...\033[0m"
 if [[ -f "$CONFIG_PATH" ]]; then

@@ -215,7 +215,10 @@ if (-not (Test-KrytenPyInstalled $VenvPython)) {
     }
 }
 
-# Step 5: Run the application
+# Step 5: Clear PYTHONPATH to avoid conflicts with development versions
+$env:PYTHONPATH = ""
+
+# Step 6: Run the application
 Write-Host ""
 Write-Host "Starting Kryten User Statistics Tracker..." -ForegroundColor Green
 Write-Host "Config: $ConfigPath" -ForegroundColor Gray
