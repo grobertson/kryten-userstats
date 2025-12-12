@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kryten-userstats"
-version = "0.4.6"
+version = "0.4.7"
 description = "User statistics tracking microservice for CyTube channels"
 authors = ["Your Name <your.email@example.com>"]
 license = "MIT"

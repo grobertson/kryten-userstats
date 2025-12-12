@@ -5,6 +5,16 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2025-12-12
+
+### Added
+
+- **Enhanced Media Title Logging** - Added comprehensive debug logging for media title tracking
+  - Added INFO level logging for media change events showing title, type, and ID
+  - Added DEBUG level logging showing raw playlist data during initialization
+  - Added WARNING when playlist items have missing/empty titles
+  - Helps diagnose media title extraction issues and event reception
+
 ## [0.4.6] - 2025-12-12
 
 ### Added

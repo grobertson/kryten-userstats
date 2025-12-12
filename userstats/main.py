@@ -177,10 +177,16 @@ class UserStatsApp:
                     # Find the first item (current playing)
                     if playlist_json:
                         current = playlist_json[0]
+                        # Log the raw data for debugging
+                        self.logger.debug(f"First playlist item raw data: {current}")
+
                         # Get title, explicitly check for None (not using 'or' which treats empty string as falsy)
                         raw_title = current.get("title")
+                        self.logger.debug(f"Raw title from playlist: '{raw_title}' (type: {type(raw_title).__name__})")
+
                         if raw_title is None or raw_title == "":
                             raw_title = "Unknown"
+                            self.logger.warning("Playlist item has no title, using 'Unknown'")
 
                         # Clean the title (remove file extensions, improve formatting)
                         media_title = self._clean_media_title(raw_title)
@@ -188,7 +194,7 @@ class UserStatsApp:
                         media_id = current.get("id", "")
 
                         self._current_media[channel] = {"title": media_title, "type": media_type, "id": media_id}
-                        self.logger.info(f"Initialized current media: {media_title}")
+                        self.logger.info(f"Initialized current media: {media_title} (type={media_type}, id={media_id})")
                 else:
                     self.logger.info("No initial playlist found in KV store")
 
@@ -476,8 +482,17 @@ class UserStatsApp:
     async def _handle_media_change(self, event: ChangeMediaEvent) -> None:
         """Handle media change event."""
         try:
+            self.logger.debug(
+                f"Media change event: title='{event.title}', type={event.media_type}, "
+                f"id={event.media_id}, channel={event.channel}"
+            )
+
             # Clean the media title (remove file extensions, improve formatting)
             cleaned_title = self._clean_media_title(event.title)
+
+            self.logger.info(
+                f"Media changed in {event.channel}: {cleaned_title} " f"(type={event.media_type}, id={event.media_id})"
+            )
 
             # Track current media for movie voting (use cleaned title)
             self._current_media[event.channel] = {
