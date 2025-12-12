@@ -5,6 +5,16 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8] - 2025-12-12
+
+### Fixed
+
+- **Media Title Extraction** - Fixed extraction from nested media objects in playlist data
+  - CyTube playlist items store title/type/id in a nested `media` object
+  - Now checks for both nested `media.title` and direct `title` fields
+  - Added logging to show available fields and structure when title is missing
+  - This fixes "Initialized current media: Unknown" issue
+
 ## [0.4.7] - 2025-12-12
 
 ### Added

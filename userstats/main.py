@@ -179,14 +179,29 @@ class UserStatsApp:
                         current = playlist_json[0]
                         # Log the raw data for debugging
                         self.logger.debug(f"First playlist item raw data: {current}")
+                        self.logger.info(f"Playlist item keys: {list(current.keys())}")
 
                         # Get title, explicitly check for None (not using 'or' which treats empty string as falsy)
-                        raw_title = current.get("title")
+                        # Check if media info is nested in a 'media' field (common in CyTube protocol)
+                        if "media" in current and isinstance(current["media"], dict):
+                            self.logger.info("Found nested 'media' field in playlist item")
+                            media_obj = current["media"]
+                            raw_title = media_obj.get("title")
+                            media_type = media_obj.get("type", "")
+                            media_id = media_obj.get("id", "")
+                        else:
+                            raw_title = current.get("title")
+                            media_type = current.get("type", "")
+                            media_id = current.get("id", "")
+
                         self.logger.debug(f"Raw title from playlist: '{raw_title}' (type: {type(raw_title).__name__})")
 
                         if raw_title is None or raw_title == "":
                             raw_title = "Unknown"
-                            self.logger.warning("Playlist item has no title, using 'Unknown'")
+                            self.logger.warning(
+                                f"Playlist item has no title, using 'Unknown'. "
+                                f"Available fields: {list(current.keys())}"
+                            )
 
                         # Clean the title (remove file extensions, improve formatting)
                         media_title = self._clean_media_title(raw_title)
