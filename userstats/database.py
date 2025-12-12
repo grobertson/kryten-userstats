@@ -220,14 +220,36 @@ class StatsDatabase:
         """)
 
         # Create indices for common queries
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_counts_lookup ON message_counts(username, channel, domain)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_population_timestamp ON population_snapshots(timestamp)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_media_changes_channel ON media_changes(channel, domain, timestamp)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_lookup ON user_activity(username, channel, domain)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_emote_usage_lookup ON emote_usage(username, channel, domain, emote)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_watermarks_lookup ON population_watermarks(channel, domain, timestamp DESC)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_movie_votes_lookup ON movie_votes(channel, domain, media_title)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_message_counts_lookup "
+            "ON message_counts(username, channel, domain)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_population_timestamp ON population_snapshots(timestamp)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_media_changes_channel "
+            "ON media_changes(channel, domain, timestamp)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_user_activity_lookup "
+            "ON user_activity(username, channel, domain)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_emote_usage_lookup "
+            "ON emote_usage(username, channel, domain, emote)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_watermarks_lookup "
+            "ON population_watermarks(channel, domain, timestamp DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_movie_votes_lookup "
+            "ON movie_votes(channel, domain, media_title)"
+        )
 
         conn.commit()
 

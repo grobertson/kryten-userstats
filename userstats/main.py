@@ -91,7 +91,9 @@ class UserStatsApp:
 
             # Load userlist
             try:
-                userlist_json = await self.client.kv_get(f"{bucket_prefix}_userlist", "users", default=[], parse_json=True)
+                userlist_json = await self.client.kv_get(
+                    f"{bucket_prefix}_userlist", "users", default=[], parse_json=True
+                )
 
                 if isinstance(userlist_json, list) and userlist_json:
                     self.logger.info(f"Loaded {len(userlist_json)} users from KV store")
@@ -130,7 +132,9 @@ class UserStatsApp:
             # Load playlist (for media tracking context)
             # If playlist is available in KV store, load it
             try:
-                playlist_json = await self.client.kv_get(f"{bucket_prefix}_playlist", "items", default=[], parse_json=True)
+                playlist_json = await self.client.kv_get(
+                    f"{bucket_prefix}_playlist", "items", default=[], parse_json=True
+                )
 
                 if isinstance(playlist_json, list) and playlist_json:
                     self.logger.info(f"Loaded {len(playlist_json)} playlist items from KV store")
@@ -341,7 +345,10 @@ class UserStatsApp:
             # Check for emotes
             emotes = self.emote_detector.detect_emotes(event.message)
             if emotes:
-                self.logger.info(f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' in {event.channel}: {emotes}")
+                self.logger.info(
+                    f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' "
+                    f"in {event.channel}: {emotes}"
+                )
             for emote in emotes:
                 await self.db.increment_emote_usage(event.username, event.channel, event.domain, emote)
 
