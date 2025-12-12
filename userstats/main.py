@@ -151,13 +151,11 @@ class UserStatsApp:
                         if isinstance(emote_entry, dict):
                             name = emote_entry.get("name")
                             if isinstance(name, str):
-                                emote_names.append(name)
+                                # Strip leading # if present - emotes are stored with # in KV
+                                emote_names.append(name.lstrip("#"))
                     if emote_names:
                         self.emote_detector.set_emote_list(emote_names)
                         self.logger.info(f"Loaded {len(emote_names)} emotes from KV store")
-                        # Show sample of emote names for debugging
-                        sample = emote_names[:10] if len(emote_names) > 10 else emote_names
-                        self.logger.debug(f"Emote sample (first {len(sample)}): {sample}")
                     else:
                         self.logger.info("No emote names found in KV store data")
                 else:
@@ -376,7 +374,7 @@ class UserStatsApp:
         try:
             # Safe message preview for logging
             msg_preview = (event.message or "")[:50] if event.message else "(no message)"
-            self.logger.debug(f"Chat handler called: {event.username} in {event.channel}: {msg_preview}")
+            self.logger.debug(f"Chat message from {event.username}: {msg_preview}")
 
             # Track user
             await self.db.track_user(event.username)
@@ -422,20 +420,9 @@ class UserStatsApp:
             # Check for emotes
             emotes = self.emote_detector.detect_emotes(event.message)
             if emotes:
-                self.logger.info(
-                    f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' " f"in {event.channel}: {emotes}"
-                )
+                self.logger.debug(f"Detected {len(emotes)} emote(s) from {event.username}: {emotes}")
                 for emote in emotes:
                     await self.db.increment_emote_usage(event.username, event.channel, event.domain, emote)
-            else:
-                # Debug: Check if message has hashtags but no matches
-                import re
-                hashtags = re.findall(r"#(\w+)", event.message, re.IGNORECASE)
-                if hashtags:
-                    self.logger.debug(
-                        f"[EMOTES] Message has hashtags but no matches: {hashtags[:3]} "
-                        f"(emote list size: {len(self.emote_detector._emotes)})"
-                    )
 
             # Check for movie voting (movie++ or movie--)
             vote_pattern = r"(?:^|\s)(movie|film|vid|video)([+-]{2}|[+-])\s*$"
@@ -563,15 +550,16 @@ class UserStatsApp:
                     if isinstance(e, dict):
                         name = e.get("name")
                         if isinstance(name, str):
-                            emote_names.append(name)
+                            # Strip leading # if present - emotes are stored with # in KV
+                            emote_names.append(name.lstrip("#"))
                 if emote_names:
                     self.logger.info(f"Setting emote list with {len(emote_names)} emotes")
                     self.emote_detector.set_emote_list(emote_names)
                 else:
                     self.logger.warning("No valid emote names found in list")
             elif isinstance(emote_list, dict):
-                # Sometimes emotes are in a dict format
-                emote_names = [k for k in emote_list.keys() if isinstance(k, str)]
+                # Sometimes emotes are in a dict format - strip # from keys
+                emote_names = [k.lstrip("#") for k in emote_list.keys() if isinstance(k, str)]
                 if emote_names:
                     self.logger.info(f"Setting emote list with {len(emote_names)} emotes from dict")
                     self.emote_detector.set_emote_list(emote_names)

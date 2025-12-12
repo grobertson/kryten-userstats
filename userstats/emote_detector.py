@@ -38,7 +38,6 @@ class EmoteDetector:
             List of emote names (without # prefix) found in message
         """
         if not self._emotes:
-            self.logger.debug("Emote detection called but emote list is empty")
             return []
 
         found = []
@@ -46,21 +45,9 @@ class EmoteDetector:
         # Find all hashtags
         hashtags = re.findall(r"#(\w+)", message, re.IGNORECASE)
 
-        if hashtags:
-            self.logger.debug(f"Found {len(hashtags)} hashtags in message: {hashtags[:5]}")
-
         for tag in hashtags:
             tag_lower = tag.lower()
             if tag_lower in self._emotes:
                 found.append(tag_lower)
-                self.logger.debug(f"Matched emote: #{tag}")
-            else:
-                # Show a few examples of what we're looking for
-                if len(self._emotes) > 0:
-                    sample_emotes = list(self._emotes)[:3]
-                    self.logger.debug(
-                        f"No match for '#{tag}' (lowercase: '{tag_lower}'). "
-                        f"Emote list sample: {sample_emotes}"
-                    )
 
         return found
