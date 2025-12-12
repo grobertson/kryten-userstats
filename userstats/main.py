@@ -11,7 +11,6 @@ from kryten import (
     ChangeMediaEvent,
     ChatMessageEvent,
     KrytenClient,
-    LifecycleEventPublisher,
     UserJoinEvent,
     UserLeaveEvent,
 )
@@ -26,7 +25,7 @@ from .nats_publisher import StatsPublisher
 
 class UserStatsApp:
     """User statistics tracking microservice.
-    
+
     Tracks:
     - User message counts (public and PM)
     - Channel population snapshots every 5 minutes
@@ -38,7 +37,7 @@ class UserStatsApp:
 
     def __init__(self, config_path: str):
         """Initialize the application.
-        
+
         Args:
             config_path: Path to configuration JSON file
         """
@@ -53,7 +52,6 @@ class UserStatsApp:
         self.emote_detector: EmoteDetector | None = None
         self.metrics_server: MetricsServer | None = None
         self.nats_publisher: StatsPublisher | None = None
-        self.lifecycle: LifecycleEventPublisher | None = None
 
         # State
         self._running = False
@@ -74,7 +72,7 @@ class UserStatsApp:
 
     async def _load_initial_state(self, domain: str, channel: str) -> None:
         """Load initial channel state from NATS KV stores.
-        
+
         Args:
             domain: CyTube domain (e.g., 'cytu.be')
             channel: CyTube channel name
@@ -221,43 +219,21 @@ class UserStatsApp:
 
         self.logger.info(f"Registered {len(self.client._handlers)} event types with handlers")
 
-        # Connect to NATS
+        # Connect to NATS (lifecycle events handled automatically via ServiceConfig)
         await self.client.connect()
 
         # Track start time for uptime
         import time
         self._start_time = time.time()
 
-        # Initialize lifecycle publisher for service discovery
-        service_name = self.config.get("service", {}).get("name", "userstats")
-        service_version = self.config.get("service", {}).get("version", "1.0.0")
-
-        self.lifecycle = LifecycleEventPublisher(
-            service_name=service_name,
-            nats_client=self.client._nats,
-            logger=self.logger,
-            version=service_version,
-        )
-        await self.lifecycle.start()
-
-        # Publish startup event for service discovery
-        await self.lifecycle.publish_startup(
-            channels_configured=len(self.config.get("channels", [])),
-            metrics_port=self.config.get("metrics", {}).get("port", 28282),
-        )
-        self.logger.info("Published startup lifecycle event")
-
-        # Subscribe to discovery poll - re-announce when kryten-robot requests it
-        await self.client._nats.subscribe(
-            "kryten.service.discovery.poll",
-            cb=self._handle_discovery_poll
-        )
-        self.logger.info("Subscribed to kryten.service.discovery.poll")
+        # Lifecycle is now managed by KrytenClient - log confirmation
+        if self.client.lifecycle:
+            self.logger.info("Lifecycle publisher initialized via KrytenClient")
 
         # Subscribe to robot startup - re-announce when robot starts
-        await self.client._nats.subscribe(
+        await self.client.subscribe(
             "kryten.lifecycle.robot.startup",
-            cb=self._handle_robot_startup
+            self._handle_robot_startup
         )
         self.logger.info("Subscribed to kryten.lifecycle.robot.startup")
 
@@ -296,17 +272,7 @@ class UserStatsApp:
         self.logger.info("Stopping User Statistics Tracker")
         self._running = False
 
-        # Publish shutdown lifecycle event before disconnecting
-        if self.lifecycle:
-            import time
-            uptime = time.time() - self._start_time if self._start_time else 0
-            await self.lifecycle.publish_shutdown(
-                reason="Normal shutdown",
-                uptime_seconds=uptime,
-            )
-            await self.lifecycle.stop()
-            self.logger.info("Published shutdown lifecycle event")
-
+        # Lifecycle shutdown is handled automatically by client.disconnect()
         # Stop client event loop first
         if self.client:
             self.logger.debug("Stopping Kryten client...")
@@ -516,37 +482,19 @@ class UserStatsApp:
         except Exception as e:
             self.logger.error(f"Error handling setAFK: {e}", exc_info=True)
 
-    async def _handle_discovery_poll(self, msg: Any) -> None:
-        """Handle discovery poll request.
-        
-        Re-announces the service when Kryten-Robot sends a discovery poll.
-        This allows the service registry to be rebuilt after robot restarts.
-        
-        Args:
-            msg: NATS message (ignored, just triggers re-announcement)
-        """
-        self.logger.info("Discovery poll received, re-announcing service")
-
-        if self.lifecycle:
-            await self.lifecycle.publish_startup(
-                channels_configured=len(self.config.get("channels", [])),
-                metrics_port=self.config.get("metrics", {}).get("port", 28282),
-                re_announcement=True,
-            )
-
     async def _handle_robot_startup(self, msg: Any) -> None:
         """Handle robot startup notification.
-        
+
         Re-announces the service when Kryten-Robot starts up.
         This ensures the robot knows about all running services.
-        
+
         Args:
             msg: NATS message (ignored, just triggers re-announcement)
         """
         self.logger.info("Robot startup detected, re-announcing service")
 
-        if self.lifecycle:
-            await self.lifecycle.publish_startup(
+        if self.client and self.client.lifecycle:
+            await self.client.lifecycle.publish_startup(
                 channels_configured=len(self.config.get("channels", [])),
                 metrics_port=self.config.get("metrics", {}).get("port", 28282),
                 re_announcement=True,
@@ -600,6 +548,13 @@ async def main():
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     args = parser.parse_args()
 
+    # Setup logging first so we can log errors during config validation
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    logger = logging.getLogger(__name__)
+
     # Determine config file path
     if args.config:
         config_path = Path(args.config)
@@ -632,14 +587,6 @@ async def main():
     if not config_path.is_file():
         logger.error(f"Configuration path is not a file: {config_path}")
         sys.exit(1)
-
-    # Setup logging
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    logger = logging.getLogger(__name__)
 
     # Create application
     app = UserStatsApp(str(config_path))

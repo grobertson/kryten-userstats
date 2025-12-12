@@ -1,7 +1,11 @@
 {
   "service": {
     "name": "userstats",
-    "version": "1.0.0"
+    "version": "0.3.0",
+    "enable_lifecycle": true,
+    "enable_heartbeat": true,
+    "heartbeat_interval": 30,
+    "enable_discovery": true
   },
   "nats": {
     "servers": ["nats://localhost:4222"],

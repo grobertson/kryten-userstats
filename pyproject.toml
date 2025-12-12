@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kryten-userstats"
-version = "0.3.0"
+version = "0.4.0"
 description = "User statistics tracking microservice for CyTube channels"
 authors = ["Your Name <your.email@example.com>"]
 license = "MIT"
@@ -24,7 +24,7 @@ packages = [{include = "userstats"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-kryten-py = ">=0.2.3"
+kryten-py = ">=0.8.0"
 aiohttp = "^3.9.0"
 
 [tool.poetry.group.dev.dependencies]
