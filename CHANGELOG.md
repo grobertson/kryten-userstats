@@ -5,6 +5,25 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-12-12
+
+### Changed
+
+- **MetricsServer** - Refactored to use kryten-py's BaseMetricsServer
+  - Inherits from `kryten.BaseMetricsServer` for shared HTTP infrastructure
+  - Now exposes `/health` endpoint (JSON) in addition to `/metrics`
+  - Custom metrics and health details in `_collect_custom_metrics()` and `_get_health_details()`
+  - Reduced code duplication with shared library
+
+### Added
+
+- `/health` endpoint returns JSON with service status, database info, and session counts
+
+### Technical Details
+
+- Now requires kryten-py>=0.8.1
+- MetricsServer now subclasses BaseMetricsServer from kryten-py
+
 ## [0.4.0] - 2025-06-16
 
 ### Changed

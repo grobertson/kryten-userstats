@@ -471,14 +471,14 @@ files = [
 
 [[package]]
 name = "kryten-py"
-version = "0.8.0"
+version = "0.8.1"
 description = "Python library for building CyTube microservices via Kryten bridge and NATS"
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "kryten_py-0.8.0-py3-none-any.whl", hash = "sha256:4ba9007593ef0c7c5d6b911bcbe2db3f14bcbcd03914aa086eee33b0ace834b7"},
-    {file = "kryten_py-0.8.0.tar.gz", hash = "sha256:798de044c13e6548983051e706e8f2ed8858434742722416ac1ecce80febd6a0"},
+    {file = "kryten_py-0.8.1-py3-none-any.whl", hash = "sha256:d07e40a3f5332dd60af9d0aac3cc90c82c8c848154b9439f61cc350d1f2672a5"},
+    {file = "kryten_py-0.8.1.tar.gz", hash = "sha256:33942fa6487fbf359a412bddab53e477f8cdd79f886ed8c2ae88d3bd382a886f"},
 ]
 
 [package.dependencies]
@@ -489,6 +489,7 @@ pydantic-settings = ">=2.0.0,<3.0.0"
 [package.extras]
 all = ["python-dotenv (>=1.0.0,<2.0.0)", "pyyaml (>=6.0,<7.0)"]
 dotenv = ["python-dotenv (>=1.0.0,<2.0.0)"]
+metrics = ["aiohttp (>=3.9.0,<4.0.0)"]
 yaml = ["pyyaml (>=6.0,<7.0)"]
 
 [[package]]
@@ -1507,4 +1508,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "e10d07b49edbafeaf36dcb5f61ae2da79271ee00f4460a4522727afa1029287b"
+content-hash = "bddcd3f628ee0bd79c73ba92132a540d9c9f0131ba4257273bd30c496b5dc10e"

@@ -1,13 +1,16 @@
-"""Prometheus metrics HTTP server for user statistics."""
+"""Prometheus metrics HTTP server for user statistics.
 
-import logging
-import time
+Uses BaseMetricsServer from kryten-py for the HTTP server infrastructure.
+"""
 
-from aiohttp import web
+from kryten import BaseMetricsServer
 
 
-class MetricsServer:
-    """HTTP server exposing Prometheus metrics on port 28282."""
+class MetricsServer(BaseMetricsServer):
+    """HTTP server exposing Prometheus metrics on port 28282.
+
+    Extends kryten-py's BaseMetricsServer with userstats-specific metrics.
+    """
 
     def __init__(self, app_reference, port: int = 28282):
         """Initialize metrics server.
@@ -16,77 +19,22 @@ class MetricsServer:
             app_reference: Reference to UserStatsApp for accessing components
             port: HTTP port to listen on (default 28282)
         """
+        super().__init__(
+            service_name="userstats",
+            port=port,
+            client=app_reference.client,
+        )
         self.app = app_reference
-        self.port = port
-        self.logger = logging.getLogger(__name__)
 
-        self._web_app: web.Application | None = None
-        self._runner: web.AppRunner | None = None
-        self._site: web.TCPSite | None = None
-
-        # Metrics tracking
-        self.start_time = time.time()
-
-    async def start(self) -> None:
-        """Start HTTP server."""
-        self._web_app = web.Application()
-        self._web_app.router.add_get("/metrics", self._handle_metrics)
-
-        self._runner = web.AppRunner(self._web_app)
-        await self._runner.setup()
-
-        self._site = web.TCPSite(self._runner, "0.0.0.0", self.port)
-        await self._site.start()
-
-        self.logger.info(f"Prometheus metrics server listening on port {self.port}")
-
-    async def stop(self) -> None:
-        """Stop HTTP server."""
-        if self._site:
-            await self._site.stop()
-        if self._runner:
-            await self._runner.cleanup()
-
-        self.logger.info("Metrics server stopped")
-
-    async def _handle_metrics(self, request: web.Request) -> web.Response:
-        """Handle GET /metrics request."""
-        try:
-            metrics = await self._collect_metrics()
-            return web.Response(text=metrics, content_type="text/plain; version=0.0.4")
-        except Exception as e:
-            self.logger.error(f"Error collecting metrics: {e}", exc_info=True)
-            return web.Response(text="# Error collecting metrics\n", status=500)
-
-    async def _collect_metrics(self) -> str:
-        """Collect and format Prometheus metrics."""
+    async def _collect_custom_metrics(self) -> list[str]:
+        """Collect userstats-specific metrics."""
         lines = []
 
-        # Service health metrics
-        uptime_seconds = time.time() - self.start_time
-        lines.append("# HELP userstats_uptime_seconds Service uptime in seconds")
-        lines.append("# TYPE userstats_uptime_seconds gauge")
-        lines.append(f"userstats_uptime_seconds {uptime_seconds:.2f}")
-        lines.append("")
-
-        lines.append("# HELP userstats_service_status Service health status (1=healthy, 0=unhealthy)")
-        lines.append("# TYPE userstats_service_status gauge")
-        service_healthy = 1 if self.app._running else 0
-        lines.append(f"userstats_service_status {service_healthy}")
-        lines.append("")
-
         # Database connection status
+        db_connected = 1 if self.app.db and self.app.db.db_path else 0
         lines.append("# HELP userstats_database_connected Database connection status (1=connected, 0=disconnected)")
         lines.append("# TYPE userstats_database_connected gauge")
-        db_connected = 1 if self.app.db and self.app.db.db_path else 0
         lines.append(f"userstats_database_connected {db_connected}")
-        lines.append("")
-
-        # NATS connection status
-        lines.append("# HELP userstats_nats_connected NATS connection status (1=connected, 0=disconnected)")
-        lines.append("# TYPE userstats_nats_connected gauge")
-        nats_connected = 1 if self.app.client and self.app.client._running else 0
-        lines.append(f"userstats_nats_connected {nats_connected}")
         lines.append("")
 
         # Application metrics from database
@@ -145,4 +93,30 @@ class MetricsServer:
             except Exception as e:
                 self.logger.error(f"Error collecting database metrics: {e}", exc_info=True)
 
-        return "\n".join(lines)
+        return lines
+
+    async def _get_health_details(self) -> dict:
+        """Get userstats-specific health details."""
+        details = {}
+
+        # Database status
+        if self.app.db:
+            details["database"] = "connected" if self.app.db.db_path else "disconnected"
+            try:
+                total_users = await self.app.db.get_total_users()
+                details["total_users_tracked"] = total_users
+            except Exception:
+                details["database_query_error"] = True
+        else:
+            details["database"] = "not_initialized"
+
+        # Activity tracker status
+        if self.app.activity_tracker:
+            details["active_sessions"] = self.app.activity_tracker.get_active_session_count()
+        else:
+            details["activity_tracker"] = "not_initialized"
+
+        # Channel configuration
+        details["channels_configured"] = len(self.app.config.get("channels", []))
+
+        return details
