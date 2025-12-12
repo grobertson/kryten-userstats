@@ -75,30 +75,30 @@ class UserStatsApp:
     @staticmethod
     def _clean_media_title(title: str) -> str:
         """Clean media title by removing file extensions and formatting.
-        
+
         Args:
             title: Raw media title
-            
+
         Returns:
             Cleaned title with file extensions removed and improved formatting
         """
         if not title:
             return "Unknown"
-        
+
         # Remove common video file extensions
-        extensions = ['.mp4', '.mkv', '.avi', '.webm', '.flv', '.mov', '.wmv', '.m4v', '.mpg', '.mpeg']
+        extensions = [".mp4", ".mkv", ".avi", ".webm", ".flv", ".mov", ".wmv", ".m4v", ".mpg", ".mpeg"]
         cleaned = title
         for ext in extensions:
             if cleaned.lower().endswith(ext):
-                cleaned = cleaned[:-len(ext)]
+                cleaned = cleaned[: -len(ext)]
                 break
-        
+
         # Replace periods and underscores with spaces (common in filenames)
-        cleaned = cleaned.replace('.', ' ').replace('_', ' ')
-        
+        cleaned = cleaned.replace(".", " ").replace("_", " ")
+
         # Remove multiple spaces
-        cleaned = ' '.join(cleaned.split())
-        
+        cleaned = " ".join(cleaned.split())
+
         return cleaned if cleaned else "Unknown"
 
     async def _load_initial_state(self, domain: str, channel: str) -> None:
@@ -181,7 +181,7 @@ class UserStatsApp:
                         raw_title = current.get("title")
                         if raw_title is None or raw_title == "":
                             raw_title = "Unknown"
-                        
+
                         # Clean the title (remove file extensions, improve formatting)
                         media_title = self._clean_media_title(raw_title)
                         media_type = current.get("type", "")
@@ -381,7 +381,9 @@ class UserStatsApp:
                     await self.db.increment_kudos_phrase(resolved, event.channel, event.domain, phrase)
                     self.logger.info(f"[KUDOS] '{phrase}' for '{resolved}' from '{event.username}' in {event.channel}")
                 else:
-                    self.logger.debug(f"[KUDOS] Ignored '{phrase}' for unknown user '{resolved}' from '{event.username}'")
+                    self.logger.debug(
+                        f"[KUDOS] Ignored '{phrase}' for unknown user '{resolved}' from '{event.username}'"
+                    )
 
             # Check for emotes
             emotes = self.emote_detector.detect_emotes(event.message)
@@ -476,9 +478,13 @@ class UserStatsApp:
         try:
             # Clean the media title (remove file extensions, improve formatting)
             cleaned_title = self._clean_media_title(event.title)
-            
+
             # Track current media for movie voting (use cleaned title)
-            self._current_media[event.channel] = {"title": cleaned_title, "type": event.media_type, "id": event.media_id}
+            self._current_media[event.channel] = {
+                "title": cleaned_title,
+                "type": event.media_type,
+                "id": event.media_id,
+            }
 
             # Log to database with cleaned title
             await self.db.log_media_change(event.channel, event.domain, cleaned_title, event.media_type, event.media_id)

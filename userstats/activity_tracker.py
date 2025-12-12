@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -76,7 +76,7 @@ class ActivityTracker:
     def user_joined(self, domain: str, channel: str, username: str) -> None:
         """Record user joining channel."""
         key = (domain, channel, username)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         self._sessions[key] = UserSession(username=username, join_time=now, last_activity=now, is_afk=False)
 
@@ -92,7 +92,7 @@ class ActivityTracker:
         if not session:
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         total_seconds = int((now - session.join_time).total_seconds())
 
         # If user is currently AFK, add the current AFK period to total
@@ -115,7 +115,7 @@ class ActivityTracker:
             self.user_joined(domain, channel, username)
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session.last_activity = now
 
     def set_afk_status(self, domain: str, channel: str, username: str, is_afk: bool) -> None:
@@ -137,7 +137,7 @@ class ActivityTracker:
             if not session:
                 return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if is_afk and not session.is_afk:
             # User just went AFK

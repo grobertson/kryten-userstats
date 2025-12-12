@@ -1,7 +1,7 @@
 """Tests for ActivityTracker."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -26,7 +26,7 @@ class TestUserSession:
 
     def test_default_values(self):
         """Test default values are set correctly."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session = UserSession(username="alice", join_time=now, last_activity=now)
 
         assert session.username == "alice"
@@ -68,8 +68,8 @@ class TestActivityTracker:
         """Test user leaving returns time spent."""
         with patch("userstats.activity_tracker.datetime") as mock_dt:
             # Set up time mocking
-            join_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            leave_time = datetime(2024, 1, 1, 12, 30, 0, tzinfo=timezone.utc)
+            join_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+            leave_time = datetime(2024, 1, 1, 12, 30, 0, tzinfo=UTC)
 
             mock_dt.now.return_value = join_time
             mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -132,9 +132,9 @@ class TestActivityTracker:
     def test_set_afk_status_returning_from_afk(self, tracker):
         """Test returning from AFK."""
         with patch("userstats.activity_tracker.datetime") as mock_dt:
-            join_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            afk_start = datetime(2024, 1, 1, 12, 10, 0, tzinfo=timezone.utc)
-            afk_end = datetime(2024, 1, 1, 12, 15, 0, tzinfo=timezone.utc)
+            join_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+            afk_start = datetime(2024, 1, 1, 12, 10, 0, tzinfo=UTC)
+            afk_end = datetime(2024, 1, 1, 12, 15, 0, tzinfo=UTC)
 
             mock_dt.now.return_value = join_time
             mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -160,9 +160,9 @@ class TestActivityTracker:
     def test_user_left_with_current_afk(self, tracker):
         """Test leaving while AFK includes current AFK time."""
         with patch("userstats.activity_tracker.datetime") as mock_dt:
-            join_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            afk_start = datetime(2024, 1, 1, 12, 10, 0, tzinfo=timezone.utc)
-            leave_time = datetime(2024, 1, 1, 12, 30, 0, tzinfo=timezone.utc)
+            join_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+            afk_start = datetime(2024, 1, 1, 12, 10, 0, tzinfo=UTC)
+            leave_time = datetime(2024, 1, 1, 12, 30, 0, tzinfo=UTC)
 
             mock_dt.now.return_value = join_time
             mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
