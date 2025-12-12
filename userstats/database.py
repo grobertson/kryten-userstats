@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import sqlite3
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -277,7 +277,7 @@ class StatsDatabase:
 
     async def track_user(self, username: str) -> None:
         """Track a seen username (insert or update last_seen)."""
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         def _track():
             conn = sqlite3.connect(self.db_path)
@@ -339,7 +339,7 @@ class StatsDatabase:
         def _save():
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            timestamp = datetime.now(UTC).isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
 
             # Save snapshot
             cursor.execute(
@@ -405,7 +405,7 @@ class StatsDatabase:
         self, channel: str, domain: str, title: str, media_type: str = "", media_id: str = ""
     ) -> None:
         """Log media title change."""
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         def _log():
             conn = sqlite3.connect(self.db_path)
@@ -1012,7 +1012,7 @@ class StatsDatabase:
         def _record():
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            timestamp = datetime.now(UTC).isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
 
             cursor.execute(
                 """
