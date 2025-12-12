@@ -22,8 +22,8 @@ class KudosDetector:
         self._trigger_phrases: set[str] = set()
 
         # Regex patterns for ++ kudos
-        self._plusplus_prefix = re.compile(r'\+\+(\w+)', re.IGNORECASE)
-        self._plusplus_suffix = re.compile(r'(\w+)\+\+', re.IGNORECASE)
+        self._plusplus_prefix = re.compile(r"\+\+(\w+)", re.IGNORECASE)
+        self._plusplus_suffix = re.compile(r"(\w+)\+\+", re.IGNORECASE)
 
     def set_trigger_phrases(self, phrases: list[str]) -> None:
         """Set the list of trigger phrases for phrase-based kudos.
@@ -71,33 +71,33 @@ class KudosDetector:
         words = message.split()
 
         for i, word in enumerate(words):
-            word_lower = word.lower().strip('.,!?;:')
+            word_lower = word.lower().strip(".,!?;:")
 
             # Check if this word is a trigger phrase
             if word_lower in self._trigger_phrases:
                 # Check if there's a word before it (username phrase)
                 if i > 0:
-                    username = words[i - 1].strip('.,!?;:@')
+                    username = words[i - 1].strip(".,!?;:@")
                     if username and len(username) > 1:
                         results.append((username, word_lower))
 
                 # Check if there's a word after it (phrase username)
                 if i < len(words) - 1:
-                    username = words[i + 1].strip('.,!?;:@')
+                    username = words[i + 1].strip(".,!?;:@")
                     if username and len(username) > 1:
                         results.append((username, word_lower))
 
             # Check for repeating "haha", "hehe", etc.
-            if re.match(r'^(ha|he|ho){2,}$', word_lower, re.IGNORECASE):
+            if re.match(r"^(ha|he|ho){2,}$", word_lower, re.IGNORECASE):
                 # Check surrounding words
                 if i > 0:
-                    username = words[i - 1].strip('.,!?;:@')
+                    username = words[i - 1].strip(".,!?;:@")
                     if username and len(username) > 1:
-                        results.append((username, 'haha'))
+                        results.append((username, "haha"))
 
                 if i < len(words) - 1:
-                    username = words[i + 1].strip('.,!?;:@')
+                    username = words[i + 1].strip(".,!?;:@")
                     if username and len(username) > 1:
-                        results.append((username, 'haha'))
+                        results.append((username, "haha"))
 
         return results

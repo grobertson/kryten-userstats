@@ -147,11 +147,7 @@ class UserStatsApp:
                         media_type = current.get("type", "")
                         media_id = current.get("id", "")
 
-                        self._current_media[channel] = {
-                            'title': media_title,
-                            'type': media_type,
-                            'id': media_id
-                        }
+                        self._current_media[channel] = {"title": media_title, "type": media_type, "id": media_id}
                         self.logger.info(f"Initialized current media: {media_title}")
                 else:
                     self.logger.info("No initial playlist found in KV store")
@@ -236,10 +232,7 @@ class UserStatsApp:
             self.logger.info("Lifecycle publisher initialized via KrytenClient")
 
         # Subscribe to robot startup - re-announce when robot starts
-        await self.client.subscribe(
-            "kryten.lifecycle.robot.startup",
-            self._handle_robot_startup
-        )
+        await self.client.subscribe("kryten.lifecycle.robot.startup", self._handle_robot_startup)
         self.logger.info("Subscribed to kryten.lifecycle.robot.startup")
 
         # Load initial state from KV stores after connection
@@ -346,18 +339,17 @@ class UserStatsApp:
             emotes = self.emote_detector.detect_emotes(event.message)
             if emotes:
                 self.logger.info(
-                    f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' "
-                    f"in {event.channel}: {emotes}"
+                    f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' " f"in {event.channel}: {emotes}"
                 )
             for emote in emotes:
                 await self.db.increment_emote_usage(event.username, event.channel, event.domain, emote)
 
             # Check for movie voting (movie++ or movie--)
-            vote_pattern = r'(?:^|\s)(movie|film|vid|video)([+-]{2}|[+-])\s*$'
+            vote_pattern = r"(?:^|\s)(movie|film|vid|video)([+-]{2}|[+-])\s*$"
             match = re.search(vote_pattern, event.message.lower())
             if match:
                 vote_str = match.group(2)
-                vote = 1 if '+' in vote_str else -1
+                vote = 1 if "+" in vote_str else -1
 
                 # Get current media for this channel
                 current_media = self._current_media.get(event.channel)
@@ -365,11 +357,11 @@ class UserStatsApp:
                     await self.db.record_movie_vote(
                         event.channel,
                         event.domain,
-                        current_media['title'],
-                        current_media.get('type', ''),
-                        current_media.get('id', ''),
+                        current_media["title"],
+                        current_media.get("type", ""),
+                        current_media.get("id", ""),
                         event.username,
-                        vote
+                        vote,
                     )
                     self.logger.debug(f"Movie vote {vote} from {event.username} for '{current_media['title']}'")
 
@@ -381,10 +373,10 @@ class UserStatsApp:
         try:
             # PM events come as ChatMessageEvent from kryten-py
             # If it's a ChatMessageEvent, use username attribute
-            if hasattr(event, 'username'):
+            if hasattr(event, "username"):
                 username = event.username
             # Fallback to payload for RawEvent
-            elif hasattr(event, 'payload'):
+            elif hasattr(event, "payload"):
                 username = event.payload.get("from") or event.payload.get("username")
             else:
                 return
@@ -425,8 +417,7 @@ class UserStatsApp:
                     event.username, event.channel, event.domain, total_seconds, not_afk_seconds
                 )
                 self.logger.debug(
-                    f"User {event.username} left {event.channel}: "
-                    f"{total_seconds}s total, {not_afk_seconds}s active"
+                    f"User {event.username} left {event.channel}: " f"{total_seconds}s total, {not_afk_seconds}s active"
                 )
 
         except Exception as e:
@@ -436,19 +427,9 @@ class UserStatsApp:
         """Handle media change event."""
         try:
             # Track current media for movie voting
-            self._current_media[event.channel] = {
-                'title': event.title,
-                'type': event.media_type,
-                'id': event.media_id
-            }
+            self._current_media[event.channel] = {"title": event.title, "type": event.media_type, "id": event.media_id}
 
-            await self.db.log_media_change(
-                event.channel,
-                event.domain,
-                event.title,
-                event.media_type,
-                event.media_id
-            )
+            await self.db.log_media_change(event.channel, event.domain, event.title, event.media_type, event.media_id)
 
         except Exception as e:
             self.logger.error(f"Error handling media change: {e}", exc_info=True)
@@ -458,16 +439,13 @@ class UserStatsApp:
         try:
             # emotelist events come as RawEvent (no typed conversion in kryten-py)
             # Extract emote names from payload
-            emote_list = getattr(event, 'payload', None) or event
+            emote_list = getattr(event, "payload", None) or event
             if emote_list is None:
                 self.logger.debug("Received empty emote list event")
                 return
 
             if isinstance(emote_list, list):
-                emote_names = [
-                    e.get("name") for e in emote_list
-                    if isinstance(e, dict) and e.get("name")
-                ]
+                emote_names = [e.get("name") for e in emote_list if isinstance(e, dict) and e.get("name")]
                 if emote_names:
                     self.emote_detector.set_emote_list(emote_names)
                 else:
@@ -489,7 +467,7 @@ class UserStatsApp:
             # setafk events come as RawEvent (no typed conversion in kryten-py)
             # Extract username and AFK status from payload
             # Payload format: {"name": "username", "afk": true/false}
-            if not hasattr(event, 'payload'):
+            if not hasattr(event, "payload"):
                 return
 
             username = event.payload.get("name")
@@ -543,13 +521,10 @@ class UserStatsApp:
                     # A more sophisticated approach would track AFK status
                     chat_count = connected_count
 
-                    await self.db.save_population_snapshot(
-                        channel, domain, connected_count, chat_count
-                    )
+                    await self.db.save_population_snapshot(channel, domain, connected_count, chat_count)
 
                     self.logger.debug(
-                        f"Population snapshot for {channel}: "
-                        f"{connected_count} connected, {chat_count} in chat"
+                        f"Population snapshot for {channel}: " f"{connected_count} connected, {chat_count} in chat"
                     )
 
             except asyncio.CancelledError:
@@ -567,16 +542,14 @@ async def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="User Statistics Tracker for CyTube")
     parser.add_argument(
-        "--config",
-        help="Configuration file path (default: /etc/kryten/kryten-userstats/config.json or ./config.json)"
+        "--config", help="Configuration file path (default: /etc/kryten/kryten-userstats/config.json or ./config.json)"
     )
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     args = parser.parse_args()
 
     # Setup logging first so we can log errors during config validation
     logging.basicConfig(
-        level=getattr(logging, args.log_level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=getattr(logging, args.log_level.upper()), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     logger = logging.getLogger(__name__)
 
@@ -585,10 +558,7 @@ async def main():
         config_path = Path(args.config)
     else:
         # Try default locations in order
-        default_paths = [
-            Path("/etc/kryten/kryten-userstats/config.json"),
-            Path("config.json")
-        ]
+        default_paths = [Path("/etc/kryten/kryten-userstats/config.json"), Path("config.json")]
 
         config_path = None
         for path in default_paths:
@@ -624,7 +594,7 @@ async def main():
         shutdown_event.set()
 
     # Register signal handlers (platform-specific)
-    if platform.system() != 'Windows':
+    if platform.system() != "Windows":
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, lambda s=sig: signal_handler(s, None))

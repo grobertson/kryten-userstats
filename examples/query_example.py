@@ -22,76 +22,42 @@ async def query_example():
     # System stats
     print("\n1. System Statistics:")
     request = {"service": "userstats", "command": "system.stats"}
-    response = await nc.request(
-        subject,
-        json.dumps(request).encode(),
-        timeout=5.0
-    )
+    response = await nc.request(subject, json.dumps(request).encode(), timeout=5.0)
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
 
     # System health
     print("\n2. System Health:")
     request = {"service": "userstats", "command": "system.health"}
-    response = await nc.request(
-        subject,
-        json.dumps(request).encode(),
-        timeout=5.0
-    )
+    response = await nc.request(subject, json.dumps(request).encode(), timeout=5.0)
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
 
     # Top message senders
     print("\n3. Top Message Senders (420grindhouse):")
-    request = {
-        "service": "userstats",
-        "command": "channel.top_users",
-        "channel": "420grindhouse",
-        "limit": 5
-    }
-    response = await nc.request(
-        subject,
-        json.dumps(request).encode(),
-        timeout=5.0
-    )
+    request = {"service": "userstats", "command": "channel.top_users", "channel": "420grindhouse", "limit": 5}
+    response = await nc.request(subject, json.dumps(request).encode(), timeout=5.0)
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
 
     # Global message leaderboard
     print("\n4. Global Message Leaderboard:")
     request = {"service": "userstats", "command": "leaderboard.messages", "limit": 5}
-    response = await nc.request(
-        subject,
-        json.dumps(request).encode(),
-        timeout=5.0
-    )
+    response = await nc.request(subject, json.dumps(request).encode(), timeout=5.0)
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
 
     # Most used emotes
     print("\n5. Most Used Emotes:")
     request = {"service": "userstats", "command": "leaderboard.emotes", "limit": 5}
-    response = await nc.request(
-        subject,
-        json.dumps(request).encode(),
-        timeout=5.0
-    )
+    response = await nc.request(subject, json.dumps(request).encode(), timeout=5.0)
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
 
     # Example user stats (replace 'foo' with an actual username)
     print("\n6. User Statistics (example - may not have data):")
-    request = {
-        "service": "userstats",
-        "command": "user.stats",
-        "username": "foo",
-        "channel": "420grindhouse"
-    }
-    response = await nc.request(
-        subject,
-        json.dumps(request).encode(),
-        timeout=5.0
-    )
+    request = {"service": "userstats", "command": "user.stats", "username": "foo", "channel": "420grindhouse"}
+    response = await nc.request(subject, json.dumps(request).encode(), timeout=5.0)
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
 

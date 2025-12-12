@@ -23,14 +23,14 @@ def fetch_metrics():
             print("Parsed Metrics:")
             print("=" * 60)
 
-            lines = response.text.split('\n')
+            lines = response.text.split("\n")
             current_metric = None
 
             for line in lines:
-                if line.startswith('#'):
-                    if 'HELP' in line:
+                if line.startswith("#"):
+                    if "HELP" in line:
                         # Extract metric name and description
-                        parts = line.split(' ', 3)
+                        parts = line.split(" ", 3)
                         if len(parts) >= 4:
                             current_metric = parts[2]
                             print(f"\n{current_metric}:")

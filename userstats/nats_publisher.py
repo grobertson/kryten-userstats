@@ -74,22 +74,18 @@ class StatsPublisher:
                 "data": { ... } | "error": "message"
             }
         """
-        command = request.get('command')
+        command = request.get("command")
 
         if not command:
-            return {
-                "service": "userstats",
-                "success": False,
-                "error": "Missing 'command' field"
-            }
+            return {"service": "userstats", "success": False, "error": "Missing 'command' field"}
 
         # Check service field for routing (other services can ignore)
-        service = request.get('service')
-        if service and service != 'userstats':
+        service = request.get("service")
+        if service and service != "userstats":
             return {
                 "service": "userstats",
                 "success": False,
-                "error": f"Command intended for '{service}', not 'userstats'"
+                "error": f"Command intended for '{service}', not 'userstats'",
             }
 
         # Dispatch to handler
@@ -118,33 +114,23 @@ class StatsPublisher:
                 "service": "userstats",
                 "command": command,
                 "success": False,
-                "error": f"Unknown command: {command}"
+                "error": f"Unknown command: {command}",
             }
 
         try:
             result = await handler(request)
-            return {
-                "service": "userstats",
-                "command": command,
-                "success": True,
-                "data": result
-            }
+            return {"service": "userstats", "command": command, "success": True, "data": result}
         except Exception as e:  # noqa: BLE001
             self.logger.error(f"Error executing command '{command}': {e}", exc_info=True)
-            return {
-                "service": "userstats",
-                "command": command,
-                "success": False,
-                "error": str(e)
-            }
+            return {"service": "userstats", "command": command, "success": False, "error": str(e)}
 
     # Query handlers - all return dicts with query results (wrapped by _handle_command)
 
     async def _handle_user_stats(self, request: dict) -> dict:
         """Handle user.stats query - Get comprehensive user statistics."""
-        username = request.get('username')
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
+        username = request.get("username")
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
 
         if not username:
             raise ValueError("username required")
@@ -170,9 +156,9 @@ class StatsPublisher:
 
     async def _handle_user_messages(self, request: dict) -> dict:
         """Handle user.messages query - Get user message history."""
-        username = request.get('username')
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
+        username = request.get("username")
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
 
         if not username:
             raise ValueError("username required")
@@ -186,9 +172,9 @@ class StatsPublisher:
 
     async def _handle_user_activity(self, request: dict) -> dict:
         """Handle user.activity query - Get user activity time."""
-        username = request.get('username')
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
+        username = request.get("username")
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
 
         if not username:
             raise ValueError("username required")
@@ -202,8 +188,8 @@ class StatsPublisher:
 
     async def _handle_user_kudos(self, request: dict) -> dict:
         """Handle user.kudos query - Get user kudos received."""
-        username = request.get('username')
-        domain = request.get('domain', self.app._domain)
+        username = request.get("username")
+        domain = request.get("domain", self.app._domain)
 
         if not username:
             raise ValueError("username required")
@@ -217,9 +203,9 @@ class StatsPublisher:
 
     async def _handle_channel_top_users(self, request: dict) -> dict:
         """Handle channel.top_users query - Get most active users."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        limit = request.get('limit', 10)
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        limit = request.get("limit", 10)
 
         if not channel:
             raise ValueError("channel required")
@@ -229,9 +215,9 @@ class StatsPublisher:
 
     async def _handle_channel_population(self, request: dict) -> dict:
         """Handle channel.population query - Get current/historical population."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        hours = request.get('hours', 24)
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        hours = request.get("hours", 24)
 
         if not channel:
             raise ValueError("channel required")
@@ -243,9 +229,9 @@ class StatsPublisher:
 
     async def _handle_channel_media_history(self, request: dict) -> dict:
         """Handle channel.media_history query - Get media change history."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        limit = request.get('limit', 50)
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        limit = request.get("limit", 50)
 
         if not channel:
             raise ValueError("channel required")
@@ -255,9 +241,9 @@ class StatsPublisher:
 
     async def _handle_leaderboard_messages(self, request: dict) -> dict:
         """Handle leaderboard.messages query - Get message leaderboard."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        limit = request.get('limit', 10)
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        limit = request.get("limit", 10)
 
         if not channel:
             raise ValueError("channel required")
@@ -267,16 +253,16 @@ class StatsPublisher:
 
     async def _handle_leaderboard_kudos(self, request: dict) -> dict:
         """Handle leaderboard.kudos query - Get kudos leaderboard."""
-        domain = request.get('domain', self.app._domain)
-        limit = request.get('limit', 10)
+        domain = request.get("domain", self.app._domain)
+        limit = request.get("limit", 10)
 
         leaderboard = await self.app.db.get_global_kudos_leaderboard(domain, limit)
         return {"leaderboard": leaderboard}
 
     async def _handle_leaderboard_emotes(self, request: dict) -> dict:
         """Handle leaderboard.emotes query - Get emote usage leaderboard."""
-        domain = request.get('domain', self.app._domain)
-        limit = request.get('limit', 10)
+        domain = request.get("domain", self.app._domain)
+        limit = request.get("limit", 10)
 
         leaderboard = await self.app.db.get_top_emotes(domain, limit)
         return {"leaderboard": leaderboard}
@@ -310,9 +296,9 @@ class StatsPublisher:
 
     async def _handle_channel_watermarks(self, request: dict) -> dict:
         """Handle channel.watermarks query - Get high/low user population marks."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        days = request.get('days')
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        days = request.get("days")
 
         if not channel:
             raise ValueError("channel required")
@@ -322,9 +308,9 @@ class StatsPublisher:
 
     async def _handle_movie_votes(self, request: dict) -> dict:
         """Handle channel.movie_votes query - Get movie voting statistics."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        media_title = request.get('media_title')
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        media_title = request.get("media_title")
 
         if not channel:
             raise ValueError("channel required")
@@ -334,10 +320,10 @@ class StatsPublisher:
 
     async def _handle_timeseries_messages(self, request: dict) -> dict:
         """Handle timeseries.messages query - Get message activity over time."""
-        channel = request.get('channel')
-        domain = request.get('domain', self.app._domain)
-        start_time = request.get('start_time')
-        end_time = request.get('end_time')
+        channel = request.get("channel")
+        domain = request.get("domain", self.app._domain)
+        start_time = request.get("start_time")
+        end_time = request.get("end_time")
 
         if not channel:
             raise ValueError("channel required")

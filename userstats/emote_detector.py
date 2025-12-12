@@ -43,7 +43,7 @@ class EmoteDetector:
         found = []
 
         # Find all hashtags
-        hashtags = re.findall(r'#(\w+)', message, re.IGNORECASE)
+        hashtags = re.findall(r"#(\w+)", message, re.IGNORECASE)
 
         for tag in hashtags:
             if tag.lower() in self._emotes:

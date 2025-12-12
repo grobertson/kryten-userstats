@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 @dataclass
 class UserSession:
     """Track a user's session in a channel."""
+
     username: str
     join_time: datetime
     last_activity: datetime
@@ -77,12 +78,7 @@ class ActivityTracker:
         key = (domain, channel, username)
         now = datetime.now(UTC)
 
-        self._sessions[key] = UserSession(
-            username=username,
-            join_time=now,
-            last_activity=now,
-            is_afk=False
-        )
+        self._sessions[key] = UserSession(username=username, join_time=now, last_activity=now, is_afk=False)
 
     def user_left(self, domain: str, channel: str, username: str) -> tuple[int, int] | None:
         """Record user leaving channel.

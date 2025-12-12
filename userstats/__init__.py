@@ -26,4 +26,3 @@ __license__ = "MIT"
 from .main import UserStatsApp
 
 __all__ = ["UserStatsApp"]
-

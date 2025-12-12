@@ -15,11 +15,7 @@ async def query_nats(subject: str, request: dict, timeout: float = 5.0) -> dict:
     await nc.connect("nats://localhost:4222")
 
     try:
-        response = await nc.request(
-            subject,
-            json.dumps(request).encode(),
-            timeout=timeout
-        )
+        response = await nc.request(subject, json.dumps(request).encode(), timeout=timeout)
         result = json.loads(response.data.decode())
         return result
     finally:
@@ -28,11 +24,7 @@ async def query_nats(subject: str, request: dict, timeout: float = 5.0) -> dict:
 
 async def cmd_user(args):
     """Query user statistics."""
-    request = {
-        "service": "userstats",
-        "command": "user.stats",
-        "username": args.username
-    }
+    request = {"service": "userstats", "command": "user.stats", "username": args.username}
     if args.channel:
         request["channel"] = args.channel
 
@@ -48,11 +40,7 @@ async def cmd_user(args):
 
 async def cmd_leaderboard(args):
     """Query leaderboards."""
-    request = {
-        "service": "userstats",
-        "command": f"leaderboard.{args.type}",
-        "limit": args.limit
-    }
+    request = {"service": "userstats", "command": f"leaderboard.{args.type}", "limit": args.limit}
 
     subject = "kryten.userstats.command"
     result = await query_nats(subject, request)
@@ -87,12 +75,7 @@ async def cmd_channel(args):
     subject = "kryten.userstats.command"
 
     if args.query == "top":
-        request = {
-            "service": "userstats",
-            "command": "channel.top_users",
-            "channel": args.channel,
-            "limit": args.limit
-        }
+        request = {"service": "userstats", "command": "channel.top_users", "channel": args.channel, "limit": args.limit}
         result = await query_nats(subject, request)
 
         if not result.get("success"):
@@ -110,7 +93,7 @@ async def cmd_channel(args):
             "service": "userstats",
             "command": "channel.population",
             "channel": args.channel,
-            "hours": args.hours
+            "hours": args.hours,
         }
         result = await query_nats(subject, request)
 
@@ -125,7 +108,7 @@ async def cmd_channel(args):
             "service": "userstats",
             "command": "channel.media_history",
             "channel": args.channel,
-            "limit": args.limit
+            "limit": args.limit,
         }
         result = await query_nats(subject, request)
 
@@ -146,10 +129,7 @@ async def cmd_system(args):
     subject = "kryten.userstats.command"
 
     if args.query == "stats":
-        request = {
-            "service": "userstats",
-            "command": "system.stats"
-        }
+        request = {"service": "userstats", "command": "system.stats"}
         result = await query_nats(subject, request)
 
         if not result.get("success"):
@@ -168,10 +148,7 @@ async def cmd_system(args):
         print(f"Active Sessions:    {data.get('active_sessions', 0):,}")
 
     elif args.query == "health":
-        request = {
-            "service": "userstats",
-            "command": "system.health"
-        }
+        request = {"service": "userstats", "command": "system.health"}
         result = await query_nats(subject, request)
 
         if not result.get("success"):

@@ -27,11 +27,7 @@ class TestUserSession:
     def test_default_values(self):
         """Test default values are set correctly."""
         now = datetime.now(UTC)
-        session = UserSession(
-            username="alice",
-            join_time=now,
-            last_activity=now
-        )
+        session = UserSession(username="alice", join_time=now, last_activity=now)
 
         assert session.username == "alice"
         assert session.join_time == now
@@ -110,6 +106,7 @@ class TestActivityTracker:
 
         # Small delay then activity
         import time
+
         time.sleep(0.01)
         tracker.user_activity("cytu.be", "lounge", "alice")
 

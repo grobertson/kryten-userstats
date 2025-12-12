@@ -254,9 +254,7 @@ class TestMediaChanges:
     @pytest.mark.asyncio
     async def test_log_media_change(self, temp_db):
         """Test logging a media change."""
-        await temp_db.log_media_change(
-            "lounge", "cytu.be", "Cool Video", "yt", "abc123"
-        )
+        await temp_db.log_media_change("lounge", "cytu.be", "Cool Video", "yt", "abc123")
 
         recent = await temp_db.get_recent_media_changes("lounge", "cytu.be", limit=1)
         assert len(recent) == 1

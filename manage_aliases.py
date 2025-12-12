@@ -34,6 +34,7 @@ async def list_aliases(db: StatsDatabase):
     """List all username aliases."""
     # Query all unique usernames with aliases
     import sqlite3
+
     conn = sqlite3.connect(db.db_path)
     cursor = conn.cursor()
 
