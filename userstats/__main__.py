@@ -1,6 +1,7 @@
 """Main entry point for userstats module."""
 
 import asyncio
+
 from .main import main as async_main
 
 

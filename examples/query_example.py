@@ -3,21 +3,22 @@
 
 import asyncio
 import json
+
 from nats.aio.client import Client as NATS
 
 
 async def query_example():
     """Demonstrate various query endpoints using kryten.userstats.command."""
-    
+
     nc = NATS()
     await nc.connect("nats://localhost:4222")
-    
+
     print("=" * 60)
     print("Kryten User Statistics - Query Examples")
     print("=" * 60)
-    
+
     subject = "kryten.userstats.command"
-    
+
     # System stats
     print("\n1. System Statistics:")
     request = {"service": "userstats", "command": "system.stats"}
@@ -28,7 +29,7 @@ async def query_example():
     )
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
-    
+
     # System health
     print("\n2. System Health:")
     request = {"service": "userstats", "command": "system.health"}
@@ -39,7 +40,7 @@ async def query_example():
     )
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
-    
+
     # Top message senders
     print("\n3. Top Message Senders (420grindhouse):")
     request = {
@@ -55,7 +56,7 @@ async def query_example():
     )
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
-    
+
     # Global message leaderboard
     print("\n4. Global Message Leaderboard:")
     request = {"service": "userstats", "command": "leaderboard.messages", "limit": 5}
@@ -66,7 +67,7 @@ async def query_example():
     )
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
-    
+
     # Most used emotes
     print("\n5. Most Used Emotes:")
     request = {"service": "userstats", "command": "leaderboard.emotes", "limit": 5}
@@ -77,7 +78,7 @@ async def query_example():
     )
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
-    
+
     # Example user stats (replace 'foo' with an actual username)
     print("\n6. User Statistics (example - may not have data):")
     request = {
@@ -93,9 +94,9 @@ async def query_example():
     )
     result = json.loads(response.data.decode())
     print(json.dumps(result, indent=2))
-    
+
     await nc.close()
-    
+
     print("\n" + "=" * 60)
     print("Queries completed!")
     print("=" * 60)

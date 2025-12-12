@@ -1,8 +1,7 @@
 """Emote detector for tracking emote usage."""
 
-import re
 import logging
-from typing import List, Set
+import re
 
 
 class EmoteDetector:
@@ -10,7 +9,7 @@ class EmoteDetector:
     
     Emotes are identified by hashtags matching the master emote list.
     """
-    
+
     def __init__(self, logger: logging.Logger):
         """Initialize emote detector.
         
@@ -18,9 +17,9 @@ class EmoteDetector:
             logger: Logger instance
         """
         self.logger = logger
-        self._emotes: Set[str] = set()
-        
-    def set_emote_list(self, emotes: List[str]) -> None:
+        self._emotes: set[str] = set()
+
+    def set_emote_list(self, emotes: list[str]) -> None:
         """Set the master list of available emotes.
         
         Args:
@@ -28,8 +27,8 @@ class EmoteDetector:
         """
         self._emotes = {e.lower() for e in emotes}
         self.logger.info(f"Loaded {len(self._emotes)} emotes")
-        
-    def detect_emotes(self, message: str) -> List[str]:
+
+    def detect_emotes(self, message: str) -> list[str]:
         """Detect emotes in message.
         
         Args:
@@ -40,14 +39,14 @@ class EmoteDetector:
         """
         if not self._emotes:
             return []
-            
+
         found = []
-        
+
         # Find all hashtags
         hashtags = re.findall(r'#(\w+)', message, re.IGNORECASE)
-        
+
         for tag in hashtags:
             if tag.lower() in self._emotes:
                 found.append(tag.lower())
-                
+
         return found
