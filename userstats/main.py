@@ -3,7 +3,9 @@
 import asyncio
 import json
 import logging
+import re
 import signal
+import time
 from pathlib import Path
 from typing import Any
 
@@ -223,7 +225,6 @@ class UserStatsApp:
         await self.client.connect()
 
         # Track start time for uptime
-        import time
         self._start_time = time.time()
 
         # Lifecycle is now managed by KrytenClient - log confirmation
@@ -328,22 +329,23 @@ class UserStatsApp:
             for username in plusplus_users:
                 resolved = await self.db.resolve_username(username)
                 await self.db.increment_kudos_plusplus(resolved, event.channel, event.domain)
-                self.logger.debug(f"++ kudos for {resolved} in {event.channel}")
+                self.logger.info(f"[KUDOS] ++ for '{resolved}' from '{event.username}' in {event.channel}")
 
             # Check for phrase kudos
             phrase_kudos = self.kudos_detector.detect_phrase_kudos(event.message)
             for username, phrase in phrase_kudos:
                 resolved = await self.db.resolve_username(username)
                 await self.db.increment_kudos_phrase(resolved, event.channel, event.domain, phrase)
-                self.logger.debug(f"Phrase kudos '{phrase}' for {resolved} in {event.channel}")
+                self.logger.info(f"[KUDOS] '{phrase}' for '{resolved}' from '{event.username}' in {event.channel}")
 
             # Check for emotes
             emotes = self.emote_detector.detect_emotes(event.message)
+            if emotes:
+                self.logger.info(f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' in {event.channel}: {emotes}")
             for emote in emotes:
                 await self.db.increment_emote_usage(event.username, event.channel, event.domain, emote)
 
             # Check for movie voting (movie++ or movie--)
-            import re
             vote_pattern = r'(?:^|\s)(movie|film|vid|video)([+-]{2}|[+-])\s*$'
             match = re.search(vote_pattern, event.message.lower())
             if match:

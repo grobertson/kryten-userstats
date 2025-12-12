@@ -5,6 +5,38 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2025-06-16
+
+### Fixed
+
+- **NATS Publisher** - Fixed 9 database method calls with incorrect names/signatures
+  - `get_user_stats()` → inline aggregation from multiple sources
+  - `get_user_activity_time()` → `get_user_activity_stats()`
+  - `get_user_kudos()` → `get_user_kudos_plusplus()` + `get_user_kudos_phrases()`
+  - `get_top_users_by_messages()` → `get_top_message_senders()`
+  - `get_latest_population_snapshot()` → `get_recent_population_snapshots()`
+  - `get_top_users_by_kudos()` → `get_global_kudos_leaderboard()`
+  - Added missing `domain` parameter to all handlers
+
+### Changed
+
+- **Logging** - More verbose logging for emotes and kudos
+  - ++ kudos now logs at INFO level with sender attribution
+  - Phrase kudos now logs at INFO level with phrase and sender
+  - Emote detection now logs summary at INFO level
+
+### Removed
+
+- Unused `self._conn` member from `StatsDatabase`
+- Unused `_get_connection()` async context manager from `StatsDatabase`
+- Unused `asynccontextmanager` import
+
+### Technical Details
+
+- Moved `import re` and `import time` to module level in main.py
+- Consistent use of `self.app._domain` for default domain in all handlers
+- All 70 unit tests still passing
+
 ## [0.4.1] - 2025-12-12
 
 ### Changed
