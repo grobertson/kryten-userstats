@@ -5,6 +5,36 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-06-16
+
+### Changed
+
+- **Lifecycle Integration** - Migrated to kryten-py 0.8.0's integrated lifecycle management
+  - ServiceConfig now defined in config.json instead of code
+  - Automatic startup/shutdown events via KrytenClient
+  - Automatic heartbeat publishing (configurable interval)
+  - Automatic discovery poll response
+  - Removed ~50 lines of manual lifecycle code
+
+### Added
+
+- **ServiceConfig fields in config.json**:
+  - `enable_lifecycle`: Enable lifecycle event publishing (default: true)
+  - `enable_heartbeat`: Enable heartbeat publishing (default: true)
+  - `heartbeat_interval`: Heartbeat interval in seconds (default: 30)
+  - `enable_discovery`: Respond to discovery polls (default: true)
+
+### Fixed
+
+- Fixed logger being used before initialization in main()
+
+### Technical Details
+
+- Now requires kryten-py>=0.8.0
+- `_handle_robot_startup` now uses `self.client.lifecycle.publish_startup()`
+- Lifecycle shutdown automatically handled by `client.disconnect()`
+- Simplified stop() method
+
 ## [0.2.5] - 2025-12-09
 
 ### Changed
