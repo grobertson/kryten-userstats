@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import sqlite3
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,7 +28,6 @@ class StatsDatabase:
         """
         self.db_path = Path(db_path)
         self.logger = logger
-        self._conn: sqlite3.Connection | None = None
 
     async def initialize(self) -> None:
         """Initialize database and create tables.
@@ -239,17 +237,6 @@ class StatsDatabase:
         self.logger.debug(f"Database contains {len(tables)} tables: {[t[0] for t in tables]}")
 
         conn.close()
-
-    @asynccontextmanager
-    async def _get_connection(self):
-        """Get database connection (async context manager)."""
-        conn = await asyncio.get_event_loop().run_in_executor(
-            None, sqlite3.connect, str(self.db_path)
-        )
-        try:
-            yield conn
-        finally:
-            await asyncio.get_event_loop().run_in_executor(None, conn.close)
 
     async def track_user(self, username: str) -> None:
         """Track a seen username (insert or update last_seen)."""
