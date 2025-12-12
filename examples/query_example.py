@@ -4,13 +4,13 @@
 import asyncio
 import json
 
-from nats.aio.client import Client as NATS
+from nats.aio.client import Client as NatsClient
 
 
 async def query_example():
     """Demonstrate various query endpoints using kryten.userstats.command."""
 
-    nc = NATS()
+    nc = NatsClient()
     await nc.connect("nats://localhost:4222")
 
     print("=" * 60)

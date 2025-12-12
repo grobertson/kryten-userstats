@@ -1,8 +1,8 @@
 """Tests for ActivityTracker."""
 
 import logging
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pytest
 

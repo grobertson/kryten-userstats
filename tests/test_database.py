@@ -1,9 +1,7 @@
 """Tests for StatsDatabase."""
 
-import asyncio
 import logging
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest

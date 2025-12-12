@@ -6,12 +6,12 @@ import asyncio
 import json
 import sys
 
-from nats.aio.client import Client as NATS
+from nats.aio.client import Client as NatsClient
 
 
 async def query_nats(subject: str, request: dict, timeout: float = 5.0) -> dict:
     """Send NATS request and return response."""
-    nc = NATS()
+    nc = NatsClient()
     await nc.connect("nats://localhost:4222")
 
     try:
