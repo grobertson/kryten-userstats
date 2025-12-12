@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kryten-userstats"
-version = "0.4.4"
+version = "0.4.5"
 description = "User statistics tracking microservice for CyTube channels"
 authors = ["Your Name <your.email@example.com>"]
 license = "MIT"
@@ -48,8 +48,9 @@ target-version = ['py311']
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py310"
 select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["UP017"]  # Ignore datetime.UTC suggestion for Python 3.10 compatibility
 
 [tool.mypy]
 python_version = "3.11"

@@ -5,6 +5,15 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2025-12-12
+
+### Fixed
+
+- **Python 3.10 Compatibility** - Reverted `datetime.UTC` to `timezone.utc` for Python 3.10 support
+  - `datetime.UTC` was added in Python 3.11 and broke Python 3.10 builds
+  - Updated ruff configuration to ignore UP017 rule and set target to py310
+  - All datetime references now use `timezone.utc` for broad compatibility
+
 ## [0.4.4] - 2025-01-17
 
 ### Fixed
