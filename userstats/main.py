@@ -72,6 +72,35 @@ class UserStatsApp:
 
         self.logger.info(f"Configuration loaded from {self.config_path}")
 
+    @staticmethod
+    def _clean_media_title(title: str) -> str:
+        """Clean media title by removing file extensions and formatting.
+        
+        Args:
+            title: Raw media title
+            
+        Returns:
+            Cleaned title with file extensions removed and improved formatting
+        """
+        if not title:
+            return "Unknown"
+        
+        # Remove common video file extensions
+        extensions = ['.mp4', '.mkv', '.avi', '.webm', '.flv', '.mov', '.wmv', '.m4v', '.mpg', '.mpeg']
+        cleaned = title
+        for ext in extensions:
+            if cleaned.lower().endswith(ext):
+                cleaned = cleaned[:-len(ext)]
+                break
+        
+        # Replace periods and underscores with spaces (common in filenames)
+        cleaned = cleaned.replace('.', ' ').replace('_', ' ')
+        
+        # Remove multiple spaces
+        cleaned = ' '.join(cleaned.split())
+        
+        return cleaned if cleaned else "Unknown"
+
     async def _load_initial_state(self, domain: str, channel: str) -> None:
         """Load initial channel state from NATS KV stores.
 
@@ -148,7 +177,13 @@ class UserStatsApp:
                     # Find the first item (current playing)
                     if playlist_json:
                         current = playlist_json[0]
-                        media_title = current.get("title") or current.get("queueby", "Unknown")
+                        # Get title, explicitly check for None (not using 'or' which treats empty string as falsy)
+                        raw_title = current.get("title")
+                        if raw_title is None or raw_title == "":
+                            raw_title = "Unknown"
+                        
+                        # Clean the title (remove file extensions, improve formatting)
+                        media_title = self._clean_media_title(raw_title)
                         media_type = current.get("type", "")
                         media_id = current.get("id", "")
 
@@ -439,10 +474,14 @@ class UserStatsApp:
     async def _handle_media_change(self, event: ChangeMediaEvent) -> None:
         """Handle media change event."""
         try:
-            # Track current media for movie voting
-            self._current_media[event.channel] = {"title": event.title, "type": event.media_type, "id": event.media_id}
+            # Clean the media title (remove file extensions, improve formatting)
+            cleaned_title = self._clean_media_title(event.title)
+            
+            # Track current media for movie voting (use cleaned title)
+            self._current_media[event.channel] = {"title": cleaned_title, "type": event.media_type, "id": event.media_id}
 
-            await self.db.log_media_change(event.channel, event.domain, event.title, event.media_type, event.media_id)
+            # Log to database with cleaned title
+            await self.db.log_media_change(event.channel, event.domain, cleaned_title, event.media_type, event.media_id)
 
         except Exception as e:
             self.logger.error(f"Error handling media change: {e}", exc_info=True)

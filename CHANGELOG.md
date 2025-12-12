@@ -5,6 +5,22 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2025-01-17
+
+### Fixed
+
+- **Media Title Extraction** - Fixed initial state loading bug where empty title strings would fall back to username (queueby)
+  - Changed from `or` operator to explicit `None` check to handle empty strings correctly
+  - Now properly returns "Unknown" instead of username when title is missing/empty
+  
+### Added
+
+- **Media Title Cleaning** - Added `_clean_media_title()` method to improve title formatting
+  - Removes common video file extensions (.mp4, .mkv, .avi, .webm, .flv, .mov, .wmv, .m4v, .mpg, .mpeg)
+  - Replaces periods and underscores with spaces (common in filenames)
+  - Removes multiple consecutive spaces
+  - Applied to both initial state loading and media change events
+
 ## [0.4.2] - 2025-06-16
 
 ### Fixed
