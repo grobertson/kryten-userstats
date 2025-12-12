@@ -6,7 +6,7 @@ import re
 
 class KudosDetector:
     """Detects kudos patterns in messages.
-    
+
     Supports:
     - ++ kudos: "++username" or "username++"
     - Phrase kudos: "phrase username" or "username phrase"
@@ -14,7 +14,7 @@ class KudosDetector:
 
     def __init__(self, logger: logging.Logger):
         """Initialize kudos detector.
-        
+
         Args:
             logger: Logger instance
         """
@@ -27,7 +27,7 @@ class KudosDetector:
 
     def set_trigger_phrases(self, phrases: list[str]) -> None:
         """Set the list of trigger phrases for phrase-based kudos.
-        
+
         Args:
             phrases: List of trigger phrases (e.g., ["lol", "rofl", "haha"])
         """
@@ -36,10 +36,10 @@ class KudosDetector:
 
     def detect_plusplus_kudos(self, message: str) -> list[str]:
         """Detect ++ kudos in message.
-        
+
         Args:
             message: Message text to scan
-            
+
         Returns:
             List of usernames receiving ++ kudos
         """
@@ -57,10 +57,10 @@ class KudosDetector:
 
     def detect_phrase_kudos(self, message: str) -> list[tuple[str, str]]:
         """Detect phrase-based kudos in message.
-        
+
         Args:
             message: Message text to scan
-            
+
         Returns:
             List of (username, phrase) tuples
         """

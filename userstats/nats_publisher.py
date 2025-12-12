@@ -15,7 +15,7 @@ class StatsPublisher:
 
     def __init__(self, app_reference, client: KrytenClient):
         """Initialize stats publisher using existing KrytenClient.
-        
+
         Args:
             app_reference: Reference to UserStatsApp for accessing database
             client: KrytenClient instance (already connected)
@@ -28,7 +28,7 @@ class StatsPublisher:
 
     async def connect(self) -> None:
         """Subscribe to unified command subject using KrytenClient.
-        
+
         Single subject: kryten.userstats.command
         Commands are routed via 'command' field in message payload.
         """
@@ -44,7 +44,7 @@ class StatsPublisher:
 
     async def disconnect(self) -> None:
         """Disconnect is handled by KrytenClient.
-        
+
         No need to manually unsubscribe - KrytenClient manages all subscriptions.
         """
         self.logger.info("Stats publisher cleanup (managed by KrytenClient)")
@@ -58,14 +58,14 @@ class StatsPublisher:
 
     async def _handle_command(self, request: dict) -> dict:
         """Dispatch commands based on 'command' field in request.
-        
+
         Request format:
             {
                 "command": "user.stats" | "leaderboard.messages" | etc,
                 "service": "userstats",  # For routing/filtering (optional)
                 ... command-specific parameters ...
             }
-        
+
         Response format:
             {
                 "service": "userstats",

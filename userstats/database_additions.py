@@ -6,13 +6,13 @@
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             timestamp = datetime.now(UTC).isoformat()
-            
+
             # Save snapshot
             cursor.execute("""
                 INSERT INTO population_snapshots (channel, domain, timestamp, connected_count, chat_count)
                 VALUES (?, ?, ?, ?, ?)
             """, (channel, domain, timestamp, connected_count, chat_count))
-            
+
             # Check for high water mark (last 24 hours)
             cursor.execute("""
                 SELECT MAX(connected_count) as max_count FROM population_snapshots
@@ -21,15 +21,15 @@
             """, (channel, domain))
             result = cursor.fetchone()
             max_count = result[0] if result else 0
-            
+
             if connected_count >= max_count:
                 # New high water mark
                 cursor.execute("""
-                    INSERT OR REPLACE INTO population_watermarks 
+                    INSERT OR REPLACE INTO population_watermarks
                     (channel, domain, timestamp, total_users, chat_users, is_high_mark)
                     VALUES (?, ?, ?, ?, ?, 1)
                 """, (channel, domain, timestamp, connected_count, chat_count))
-            
+
             # Check for low water mark (last 24 hours)
             cursor.execute("""
                 SELECT MIN(connected_count) as min_count FROM population_snapshots
@@ -38,28 +38,28 @@
             """, (channel, domain))
             result = cursor.fetchone()
             min_count = result[0] if result else float('inf')
-            
+
             if connected_count <= min_count:
                 # New low water mark
                 cursor.execute("""
-                    INSERT OR REPLACE INTO population_watermarks 
+                    INSERT OR REPLACE INTO population_watermarks
                     (channel, domain, timestamp, total_users, chat_users, is_high_mark)
                     VALUES (?, ?, ?, ?, ?, 0)
                 """, (channel, domain, timestamp, connected_count, chat_count))
-            
+
             conn.commit()
             conn.close()
-            
+
         await asyncio.get_event_loop().run_in_executor(None, _save)
-    
+
     async def get_water_marks(self, channel: str, domain: str, days: int = None) -> Dict[str, Any]:
         """Get high and low water marks for user population.
-        
+
         Args:
             channel: Channel name
-            domain: Domain name  
+            domain: Domain name
             days: Number of days to look back (None for all time)
-            
+
         Returns:
             Dict with 'high' and 'low' water mark data
         """
@@ -67,13 +67,13 @@
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            
+
             date_filter = ""
             params = [channel, domain]
             if days is not None:
                 date_filter = "AND datetime(timestamp) >= datetime('now', '-' || ? || ' days')"
                 params.append(days)
-            
+
             # Get high water mark
             cursor.execute(f"""
                 SELECT timestamp, total_users, chat_users FROM population_watermarks
@@ -83,7 +83,7 @@
                 LIMIT 1
             """, params)
             high_mark = cursor.fetchone()
-            
+
             # Get low water mark
             cursor.execute(f"""
                 SELECT timestamp, total_users, chat_users FROM population_watermarks
@@ -93,43 +93,43 @@
                 LIMIT 1
             """, params)
             low_mark = cursor.fetchone()
-            
+
             conn.close()
-            
+
             return {
                 'high': dict(high_mark) if high_mark else None,
                 'low': dict(low_mark) if low_mark else None
             }
-            
+
         return await asyncio.get_event_loop().run_in_executor(None, _get)
-    
-    async def record_movie_vote(self, channel: str, domain: str, media_title: str, 
+
+    async def record_movie_vote(self, channel: str, domain: str, media_title: str,
                                 media_type: str, media_id: str, username: str, vote: int) -> None:
         """Record a movie vote (1 for upvote, -1 for downvote)."""
         def _record():
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             timestamp = datetime.now(UTC).isoformat()
-            
+
             cursor.execute("""
-                INSERT OR REPLACE INTO movie_votes 
+                INSERT OR REPLACE INTO movie_votes
                 (channel, domain, media_title, media_type, media_id, username, vote, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (channel, domain, media_title, media_type, media_id, username, vote, timestamp))
-            
+
             conn.commit()
             conn.close()
-            
+
         await asyncio.get_event_loop().run_in_executor(None, _record)
-    
+
     async def get_movie_votes(self, channel: str, domain: str, media_title: str = None) -> Dict[str, Any]:
         """Get movie voting statistics.
-        
+
         Args:
             channel: Channel name
             domain: Domain name
             media_title: Specific movie title (None for all movies)
-            
+
         Returns:
             Dict with vote statistics or list of movies
         """
@@ -137,11 +137,11 @@
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            
+
             if media_title:
                 # Get votes for specific movie
                 cursor.execute("""
-                    SELECT 
+                    SELECT
                         media_title,
                         media_type,
                         media_id,
@@ -159,7 +159,7 @@
             else:
                 # Get all movies with votes
                 cursor.execute("""
-                    SELECT 
+                    SELECT
                         media_title,
                         media_type,
                         media_id,
@@ -176,43 +176,43 @@
                 rows = [dict(row) for row in cursor.fetchall()]
                 conn.close()
                 return rows
-            
+
         return await asyncio.get_event_loop().run_in_executor(None, _get)
-    
-    async def get_time_series_messages(self, channel: str, domain: str, 
+
+    async def get_time_series_messages(self, channel: str, domain: str,
                                        start_time: str = None, end_time: str = None) -> List[Dict[str, Any]]:
         """Get message counts over time for charting.
-        
+
         Returns hourly aggregated message counts.
         """
         def _get():
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            
+
             # For now, use population snapshots as a proxy for activity
             # In the future, could track messages by timestamp
             query = """
-                SELECT 
+                SELECT
                     strftime('%Y-%m-%d %H:00:00', timestamp) as hour,
                     AVG(chat_count) as avg_active_users
                 FROM population_snapshots
                 WHERE channel = ? AND domain = ?
             """
             params = [channel, domain]
-            
+
             if start_time:
                 query += " AND datetime(timestamp) >= datetime(?)"
                 params.append(start_time)
             if end_time:
                 query += " AND datetime(timestamp) <= datetime(?)"
                 params.append(end_time)
-                
+
             query += " GROUP BY hour ORDER BY hour"
-            
+
             cursor.execute(query, params)
             rows = [dict(row) for row in cursor.fetchall()]
             conn.close()
             return rows
-            
+
         return await asyncio.get_event_loop().run_in_executor(None, _get)

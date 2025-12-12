@@ -6,13 +6,13 @@ import re
 
 class EmoteDetector:
     """Detects emote usage in messages.
-    
+
     Emotes are identified by hashtags matching the master emote list.
     """
 
     def __init__(self, logger: logging.Logger):
         """Initialize emote detector.
-        
+
         Args:
             logger: Logger instance
         """
@@ -21,7 +21,7 @@ class EmoteDetector:
 
     def set_emote_list(self, emotes: list[str]) -> None:
         """Set the master list of available emotes.
-        
+
         Args:
             emotes: List of emote names (without # prefix)
         """
@@ -30,10 +30,10 @@ class EmoteDetector:
 
     def detect_emotes(self, message: str) -> list[str]:
         """Detect emotes in message.
-        
+
         Args:
             message: Message text to scan
-            
+
         Returns:
             List of emote names (without # prefix) found in message
         """

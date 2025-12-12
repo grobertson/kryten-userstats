@@ -11,7 +11,7 @@ from typing import Any
 
 class StatsDatabase:
     """Manages SQLite database for user statistics tracking.
-    
+
     Handles all data persistence including:
     - User activity tracking (messages, PMs, emotes)
     - Channel population snapshots
@@ -22,7 +22,7 @@ class StatsDatabase:
 
     def __init__(self, db_path: str | Path, logger: logging.Logger):
         """Initialize database manager.
-        
+
         Args:
             db_path: Path to SQLite database file
             logger: Logger instance
@@ -33,10 +33,10 @@ class StatsDatabase:
 
     async def initialize(self) -> None:
         """Initialize database and create tables.
-        
+
         Creates parent directories if they don't exist and sets up all required tables.
         Safe to call multiple times - uses CREATE TABLE IF NOT EXISTS.
-        
+
         Raises:
             OSError: If directory creation fails
             sqlite3.Error: If database initialization fails
@@ -550,7 +550,7 @@ class StatsDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT message_count FROM message_counts 
+                SELECT message_count FROM message_counts
                 WHERE username = ? AND channel = ? AND domain = ?
             """, (username, channel, domain))
             row = cursor.fetchone()
@@ -566,7 +566,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT channel, message_count as count FROM message_counts 
+                SELECT channel, message_count as count FROM message_counts
                 WHERE username = ? AND domain = ?
                 ORDER BY message_count DESC
             """, (username, domain))
@@ -595,7 +595,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT total_seconds, active_seconds FROM user_activity 
+                SELECT total_seconds, active_seconds FROM user_activity
                 WHERE username = ? AND channel = ? AND domain = ?
             """, (username, channel, domain))
             row = cursor.fetchone()
@@ -611,7 +611,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT channel, total_seconds, active_seconds FROM user_activity 
+                SELECT channel, total_seconds, active_seconds FROM user_activity
                 WHERE username = ? AND domain = ?
             """, (username, domain))
             rows = [dict(row) for row in cursor.fetchall()]
@@ -626,7 +626,7 @@ class StatsDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT SUM(count) FROM kudos_plusplus 
+                SELECT SUM(count) FROM kudos_plusplus
                 WHERE username = ? AND domain = ?
             """, (username, domain))
             result = cursor.fetchone()[0]
@@ -642,7 +642,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT phrase, SUM(count) as count FROM kudos_phrases 
+                SELECT phrase, SUM(count) as count FROM kudos_phrases
                 WHERE username = ? AND domain = ?
                 GROUP BY phrase
                 ORDER BY count DESC
@@ -660,7 +660,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT emote, SUM(count) as count FROM emote_usage 
+                SELECT emote, SUM(count) as count FROM emote_usage
                 WHERE username = ? AND domain = ?
                 GROUP BY emote
                 ORDER BY count DESC
@@ -678,7 +678,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT username, message_count as count FROM message_counts 
+                SELECT username, message_count as count FROM message_counts
                 WHERE channel = ? AND domain = ?
                 ORDER BY message_count DESC
                 LIMIT ?
@@ -696,7 +696,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT timestamp, connected_count, chat_count FROM population_snapshots 
+                SELECT timestamp, connected_count, chat_count FROM population_snapshots
                 WHERE channel = ? AND domain = ?
                 AND datetime(timestamp) >= datetime('now', '-' || ? || ' hours')
                 ORDER BY timestamp DESC
@@ -714,7 +714,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT timestamp, title, media_type, media_id FROM media_changes 
+                SELECT timestamp, title, media_type, media_id FROM media_changes
                 WHERE channel = ? AND domain = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -732,7 +732,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT username, SUM(message_count) as count FROM message_counts 
+                SELECT username, SUM(message_count) as count FROM message_counts
                 WHERE domain = ?
                 GROUP BY username
                 ORDER BY count DESC
@@ -751,7 +751,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT username, SUM(count) as count FROM kudos_plusplus 
+                SELECT username, SUM(count) as count FROM kudos_plusplus
                 WHERE domain = ?
                 GROUP BY username
                 ORDER BY count DESC
@@ -770,7 +770,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT emote, SUM(count) as count FROM emote_usage 
+                SELECT emote, SUM(count) as count FROM emote_usage
                 WHERE domain = ?
                 GROUP BY emote
                 ORDER BY count DESC
@@ -824,7 +824,7 @@ class StatsDatabase:
             if connected_count >= max_count:
                 # New high water mark
                 cursor.execute("""
-                    INSERT OR REPLACE INTO population_watermarks 
+                    INSERT OR REPLACE INTO population_watermarks
                     (channel, domain, timestamp, total_users, chat_users, is_high_mark)
                     VALUES (?, ?, ?, ?, ?, 1)
                 """, (channel, domain, timestamp, connected_count, chat_count))
@@ -841,7 +841,7 @@ class StatsDatabase:
             if connected_count <= min_count:
                 # New low water mark
                 cursor.execute("""
-                    INSERT OR REPLACE INTO population_watermarks 
+                    INSERT OR REPLACE INTO population_watermarks
                     (channel, domain, timestamp, total_users, chat_users, is_high_mark)
                     VALUES (?, ?, ?, ?, ?, 0)
                 """, (channel, domain, timestamp, connected_count, chat_count))
@@ -853,12 +853,12 @@ class StatsDatabase:
 
     async def get_water_marks(self, channel: str, domain: str, days: int = None) -> dict[str, Any]:
         """Get high and low water marks for user population.
-        
+
         Args:
             channel: Channel name
-            domain: Domain name  
+            domain: Domain name
             days: Number of days to look back (None for all time)
-            
+
         Returns:
             Dict with 'high' and 'low' water mark data
         """
@@ -911,7 +911,7 @@ class StatsDatabase:
             timestamp = datetime.now(UTC).isoformat()
 
             cursor.execute("""
-                INSERT OR REPLACE INTO movie_votes 
+                INSERT OR REPLACE INTO movie_votes
                 (channel, domain, media_title, media_type, media_id, username, vote, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (channel, domain, media_title, media_type, media_id, username, vote, timestamp))
@@ -923,12 +923,12 @@ class StatsDatabase:
 
     async def get_movie_votes(self, channel: str, domain: str, media_title: str = None) -> dict[str, Any]:
         """Get movie voting statistics.
-        
+
         Args:
             channel: Channel name
             domain: Domain name
             media_title: Specific movie title (None for all movies)
-            
+
         Returns:
             Dict with vote statistics or list of movies
         """
@@ -940,7 +940,7 @@ class StatsDatabase:
             if media_title:
                 # Get votes for specific movie
                 cursor.execute("""
-                    SELECT 
+                    SELECT
                         media_title,
                         media_type,
                         media_id,
@@ -958,7 +958,7 @@ class StatsDatabase:
             else:
                 # Get all movies with votes
                 cursor.execute("""
-                    SELECT 
+                    SELECT
                         media_title,
                         media_type,
                         media_id,
@@ -981,7 +981,7 @@ class StatsDatabase:
     async def get_time_series_messages(self, channel: str, domain: str,
                                        start_time: str = None, end_time: str = None) -> list[dict[str, Any]]:
         """Get message counts over time for charting.
-        
+
         Returns hourly aggregated message counts.
         """
         def _get():
@@ -992,7 +992,7 @@ class StatsDatabase:
             # For now, use population snapshots as a proxy for activity
             # In the future, could track messages by timestamp
             query = """
-                SELECT 
+                SELECT
                     strftime('%Y-%m-%d %H:00:00', timestamp) as hour,
                     AVG(chat_count) as avg_active_users
                 FROM population_snapshots

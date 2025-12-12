@@ -11,7 +11,7 @@ class MetricsServer:
 
     def __init__(self, app_reference, port: int = 28282):
         """Initialize metrics server.
-        
+
         Args:
             app_reference: Reference to UserStatsApp for accessing components
             port: HTTP port to listen on (default 28282)

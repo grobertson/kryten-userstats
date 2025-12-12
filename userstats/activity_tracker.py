@@ -19,17 +19,17 @@ class UserSession:
 
 class ActivityTracker:
     """Tracks user presence and activity in channels.
-    
+
     Monitors user join/leave events and AFK status to calculate:
     - Total time in channel
     - Active (not-AFK) time in channel
-    
+
     Uses CyTube's setAFK events for accurate AFK tracking.
     """
 
     def __init__(self, logger: logging.Logger):
         """Initialize activity tracker.
-        
+
         Args:
             logger: Logger instance
         """
@@ -42,7 +42,7 @@ class ActivityTracker:
 
     def get_active_sessions(self) -> dict[tuple, list[str]]:
         """Get currently active sessions grouped by (domain, channel).
-        
+
         Returns:
             Dict mapping (domain, channel) -> list of usernames
         """
@@ -87,7 +87,7 @@ class ActivityTracker:
 
     def user_left(self, domain: str, channel: str, username: str) -> tuple[int, int] | None:
         """Record user leaving channel.
-        
+
         Returns:
             Tuple of (total_seconds, not_afk_seconds) or None if user not tracked
         """
@@ -125,7 +125,7 @@ class ActivityTracker:
 
     def set_afk_status(self, domain: str, channel: str, username: str, is_afk: bool) -> None:
         """Set user's AFK status based on CyTube setAFK event.
-        
+
         Args:
             domain: Channel domain
             channel: Channel name
@@ -183,7 +183,7 @@ class ActivityTracker:
 
     def get_active_sessions(self) -> dict[tuple[str, str], list[str]]:
         """Get all active sessions grouped by (domain, channel).
-        
+
         Returns:
             Dict mapping (domain, channel) to list of active usernames
         """
