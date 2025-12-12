@@ -19,7 +19,7 @@ For more information, see:
 - METRICS_IMPLEMENTATION.md for technical details
 """
 
-__version__ = "0.2.4"
+__version__ = "0.4.2"
 __author__ = "Kryten Contributors"
 __license__ = "MIT"
 
