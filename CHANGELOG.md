@@ -5,6 +5,22 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2025-12-12
+
+### Fixed
+
+- **Self-Kudos Prevention** - Prevents users from awarding kudos to themselves
+  - Added check to block self-kudos for both ++ and phrase-based kudos
+  - Logs debug message when self-kudos is attempted
+
+### Added
+
+- **Enhanced Emote Detection Logging** - Added comprehensive logging for emote list handling
+  - INFO level logging when emote list is received and loaded
+  - DEBUG level logging showing emote list structure and item count
+  - WARNING level logging when emote list is empty or malformed
+  - Helps diagnose emote detection and counting issues
+
 ## [0.4.8] - 2025-12-12
 
 ### Fixed

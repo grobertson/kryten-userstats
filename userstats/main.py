@@ -386,6 +386,10 @@ class UserStatsApp:
             plusplus_users = self.kudos_detector.detect_plusplus_kudos(event.message)
             for username in plusplus_users:
                 resolved = await self.db.resolve_username(username)
+                # Prevent self-kudos
+                if resolved.lower() == event.username.lower():
+                    self.logger.debug(f"[KUDOS] Ignored self-kudos attempt by '{event.username}'")
+                    continue
                 # Only award kudos if the user exists in the userlist
                 if await self.db.user_exists(resolved):
                     await self.db.increment_kudos_plusplus(resolved, event.channel, event.domain)
@@ -397,6 +401,10 @@ class UserStatsApp:
             phrase_kudos = self.kudos_detector.detect_phrase_kudos(event.message)
             for username, phrase in phrase_kudos:
                 resolved = await self.db.resolve_username(username)
+                # Prevent self-kudos
+                if resolved.lower() == event.username.lower():
+                    self.logger.debug(f"[KUDOS] Ignored self-kudos attempt by '{event.username}'")
+                    continue
                 # Only award kudos if the user exists in the userlist
                 if await self.db.user_exists(resolved):
                     await self.db.increment_kudos_phrase(resolved, event.channel, event.domain, phrase)
@@ -525,14 +533,17 @@ class UserStatsApp:
     async def _handle_emote_list(self, event) -> None:
         """Handle emote list event."""
         try:
+            self.logger.info("Received emote list event")
             # emotelist events come as RawEvent (no typed conversion in kryten-py)
             # Extract emote names from payload
             emote_list = getattr(event, "payload", None) or event
             if emote_list is None:
-                self.logger.debug("Received empty emote list event")
+                self.logger.warning("Received empty emote list event")
                 return
 
+            self.logger.debug(f"Emote list type: {type(emote_list)}")
             if isinstance(emote_list, list):
+                self.logger.debug(f"Emote list has {len(emote_list)} items")
                 emote_names: list[str] = []
                 for e in emote_list:
                     if isinstance(e, dict):
@@ -540,13 +551,15 @@ class UserStatsApp:
                         if isinstance(name, str):
                             emote_names.append(name)
                 if emote_names:
+                    self.logger.info(f"Setting emote list with {len(emote_names)} emotes")
                     self.emote_detector.set_emote_list(emote_names)
                 else:
-                    self.logger.debug("No valid emote names found in list")
+                    self.logger.warning("No valid emote names found in list")
             elif isinstance(emote_list, dict):
                 # Sometimes emotes are in a dict format
                 emote_names = [k for k in emote_list.keys() if isinstance(k, str)]
                 if emote_names:
+                    self.logger.info(f"Setting emote list with {len(emote_names)} emotes from dict")
                     self.emote_detector.set_emote_list(emote_names)
             else:
                 self.logger.warning(f"Unexpected emote list format: {type(emote_list)}")
