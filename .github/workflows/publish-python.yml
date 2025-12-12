@@ -6,7 +6,10 @@ on:
 
 jobs:
   publish:
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +29,4 @@ jobs:
           poetry build
 
       - name: Publish to PyPI
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          poetry publish
+        uses: pypa/gh-action-pypi-publish@release/v1
