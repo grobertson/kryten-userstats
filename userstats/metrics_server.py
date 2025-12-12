@@ -97,7 +97,7 @@ class MetricsServer(BaseMetricsServer):
 
     async def _get_health_details(self) -> dict:
         """Get userstats-specific health details."""
-        details = {}
+        details: dict[str, str | int | bool] = {}
 
         # Database status
         if self.app.db:

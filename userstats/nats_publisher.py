@@ -6,6 +6,7 @@ rule that all NATS operations must go through kryten-py.
 """
 
 import logging
+from typing import Any
 
 from kryten import KrytenClient
 
@@ -24,7 +25,7 @@ class StatsPublisher:
         self.client = client
         self.logger = logging.getLogger(__name__)
 
-        self._subscriptions = []
+        self._subscriptions: list[Any] = []
 
     async def connect(self) -> None:
         """Subscribe to unified command subject using KrytenClient.
@@ -294,7 +295,7 @@ class StatsPublisher:
 
         return stats
 
-    async def _handle_channel_watermarks(self, request: dict) -> dict:
+    async def _handle_channel_watermarks(self, request: dict) -> dict[str, Any]:
         """Handle channel.watermarks query - Get high/low user population marks."""
         channel = request.get("channel")
         domain = request.get("domain", self.app._domain)
@@ -303,10 +304,10 @@ class StatsPublisher:
         if not channel:
             raise ValueError("channel required")
 
-        watermarks = await self.app.db.get_water_marks(channel, domain, days)
+        watermarks: dict[str, Any] = await self.app.db.get_water_marks(channel, domain, days)
         return watermarks
 
-    async def _handle_movie_votes(self, request: dict) -> dict:
+    async def _handle_movie_votes(self, request: dict) -> dict[str, Any]:
         """Handle channel.movie_votes query - Get movie voting statistics."""
         channel = request.get("channel")
         domain = request.get("domain", self.app._domain)
@@ -315,10 +316,10 @@ class StatsPublisher:
         if not channel:
             raise ValueError("channel required")
 
-        votes = await self.app.db.get_movie_votes(channel, domain, media_title)
+        votes: dict[str, Any] = await self.app.db.get_movie_votes(channel, domain, media_title)
         return votes
 
-    async def _handle_timeseries_messages(self, request: dict) -> dict:
+    async def _handle_timeseries_messages(self, request: dict) -> dict[str, Any]:
         """Handle timeseries.messages query - Get message activity over time."""
         channel = request.get("channel")
         domain = request.get("domain", self.app._domain)
@@ -329,9 +330,9 @@ class StatsPublisher:
             raise ValueError("channel required")
 
         data = await self.app.db.get_time_series_messages(channel, domain, start_time, end_time)
-        return data
+        return {"channel": channel, "data": data}
 
-    async def _handle_timeseries_kudos(self, request: dict) -> dict:
+    async def _handle_timeseries_kudos(self, request: dict) -> dict[str, Any]:
         """Handle timeseries.kudos query - Get kudos activity over time."""
         # TODO: implement time-series tracking for kudos
-        return []
+        return {"data": []}

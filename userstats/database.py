@@ -949,7 +949,7 @@ class StatsDatabase:
 
         return await asyncio.get_event_loop().run_in_executor(None, _get)
 
-    async def get_water_marks(self, channel: str, domain: str, days: int = None) -> dict[str, Any]:
+    async def get_water_marks(self, channel: str, domain: str, days: int | None = None) -> dict[str, Any]:
         """Get high and low water marks for user population.
 
         Args:
@@ -1028,7 +1028,7 @@ class StatsDatabase:
 
         await asyncio.get_event_loop().run_in_executor(None, _record)
 
-    async def get_movie_votes(self, channel: str, domain: str, media_title: str = None) -> dict[str, Any]:
+    async def get_movie_votes(self, channel: str, domain: str, media_title: str | None = None) -> dict[str, Any]:
         """Get movie voting statistics.
 
         Args:
@@ -1093,7 +1093,11 @@ class StatsDatabase:
         return await asyncio.get_event_loop().run_in_executor(None, _get)
 
     async def get_time_series_messages(
-        self, channel: str, domain: str, start_time: str = None, end_time: str = None
+        self,
+        channel: str,
+        domain: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get message counts over time for charting.
 

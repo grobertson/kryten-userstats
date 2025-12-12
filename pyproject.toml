@@ -57,6 +57,11 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "userstats.main"
+# These attributes are always initialized before use in event handlers
+disable_error_code = ["union-attr"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

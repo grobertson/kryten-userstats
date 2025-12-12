@@ -59,7 +59,7 @@ class UserStatsApp:
         self._running = False
         self._shutdown_event = asyncio.Event()
         self._snapshot_task: asyncio.Task | None = None
-        self._current_media = {}  # Track current media by channel: {channel: {title, type, id}}
+        self._current_media: dict[str, dict[str, str]] = {}  # Track current media by channel
         self._start_time: float | None = None
 
         # Load configuration
@@ -117,7 +117,12 @@ class UserStatsApp:
                 emotes_json = await self.client.kv_get(f"{bucket_prefix}_emotes", "list", default=[], parse_json=True)
 
                 if isinstance(emotes_json, list) and emotes_json:
-                    emote_names = [e.get("name") for e in emotes_json if isinstance(e, dict) and e.get("name")]
+                    emote_names: list[str] = []
+                    for emote_entry in emotes_json:
+                        if isinstance(emote_entry, dict):
+                            name = emote_entry.get("name")
+                            if isinstance(name, str):
+                                emote_names.append(name)
                     if emote_names:
                         self.emote_detector.set_emote_list(emote_names)
                         self.logger.info(f"Loaded {len(emote_names)} emotes from KV store")
@@ -126,8 +131,8 @@ class UserStatsApp:
                 else:
                     self.logger.info("No initial emote list found in KV store")
 
-            except Exception as e:
-                self.logger.warning(f"Could not load emotes from KV store: {e}")
+            except Exception as err:
+                self.logger.warning(f"Could not load emotes from KV store: {err}")
 
             # Load playlist (for media tracking context)
             # If playlist is available in KV store, load it
@@ -445,14 +450,19 @@ class UserStatsApp:
                 return
 
             if isinstance(emote_list, list):
-                emote_names = [e.get("name") for e in emote_list if isinstance(e, dict) and e.get("name")]
+                emote_names: list[str] = []
+                for e in emote_list:
+                    if isinstance(e, dict):
+                        name = e.get("name")
+                        if isinstance(name, str):
+                            emote_names.append(name)
                 if emote_names:
                     self.emote_detector.set_emote_list(emote_names)
                 else:
                     self.logger.debug("No valid emote names found in list")
             elif isinstance(emote_list, dict):
                 # Sometimes emotes are in a dict format
-                emote_names = list(emote_list.keys())
+                emote_names = [k for k in emote_list.keys() if isinstance(k, str)]
                 if emote_names:
                     self.emote_detector.set_emote_list(emote_names)
             else:

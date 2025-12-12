@@ -5,18 +5,19 @@ import argparse
 import asyncio
 import json
 import sys
+from typing import Any
 
 from nats.aio.client import Client as NatsClient
 
 
-async def query_nats(subject: str, request: dict, timeout: float = 5.0) -> dict:
+async def query_nats(subject: str, request: dict, timeout: float = 5.0) -> dict[str, Any]:
     """Send NATS request and return response."""
     nc = NatsClient()
     await nc.connect("nats://localhost:4222")
 
     try:
         response = await nc.request(subject, json.dumps(request).encode(), timeout=timeout)
-        result = json.loads(response.data.decode())
+        result: dict[str, Any] = json.loads(response.data.decode())
         return result
     finally:
         await nc.close()
