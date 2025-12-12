@@ -155,6 +155,9 @@ class UserStatsApp:
                     if emote_names:
                         self.emote_detector.set_emote_list(emote_names)
                         self.logger.info(f"Loaded {len(emote_names)} emotes from KV store")
+                        # Show sample of emote names for debugging
+                        sample = emote_names[:10] if len(emote_names) > 10 else emote_names
+                        self.logger.debug(f"Emote sample (first {len(sample)}): {sample}")
                     else:
                         self.logger.info("No emote names found in KV store data")
                 else:
@@ -420,8 +423,17 @@ class UserStatsApp:
                 self.logger.info(
                     f"[EMOTES] {len(emotes)} emote(s) from '{event.username}' " f"in {event.channel}: {emotes}"
                 )
-            for emote in emotes:
-                await self.db.increment_emote_usage(event.username, event.channel, event.domain, emote)
+                for emote in emotes:
+                    await self.db.increment_emote_usage(event.username, event.channel, event.domain, emote)
+            else:
+                # Debug: Check if message has hashtags but no matches
+                import re
+                hashtags = re.findall(r"#(\w+)", event.message, re.IGNORECASE)
+                if hashtags:
+                    self.logger.debug(
+                        f"[EMOTES] Message has hashtags but no matches: {hashtags[:3]} "
+                        f"(emote list size: {len(self.emote_detector._emotes)})"
+                    )
 
             # Check for movie voting (movie++ or movie--)
             vote_pattern = r"(?:^|\s)(movie|film|vid|video)([+-]{2}|[+-])\s*$"
