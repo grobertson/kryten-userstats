@@ -5,6 +5,22 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2025-12-12
+
+### Added
+
+- **Enhanced Kudos Metrics** - Added comprehensive kudos tracking in Prometheus metrics
+  - New `userstats_total_kudos` metric tracks ALL kudos (both ++ and phrase-based)
+  - Kept `userstats_total_kudos_plusplus` for ++ style kudos specifically
+  - Added `userstats_total_kudos_phrases` for phrase-based kudos specifically
+  - Added `get_total_kudos_phrases()` and `get_total_kudos()` database methods
+
+### Changed
+
+- **Metrics Clarity** - Renamed metric description to clarify coverage
+  - "Total ++ kudos given" remains for `userstats_total_kudos_plusplus`
+  - "Total kudos given (all types)" for new `userstats_total_kudos` metric
+
 ## [0.4.5] - 2025-12-12
 
 ### Fixed

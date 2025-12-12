@@ -61,11 +61,25 @@ class MetricsServer(BaseMetricsServer):
                 lines.append(f"userstats_total_pms {total_pms}")
                 lines.append("")
 
-                # Total kudos (++ only)
-                total_kudos = await self.app.db.get_total_kudos_plusplus()
+                # Total kudos (all types combined)
+                total_kudos = await self.app.db.get_total_kudos()
+                lines.append("# HELP userstats_total_kudos Total kudos given (all types)")
+                lines.append("# TYPE userstats_total_kudos counter")
+                lines.append(f"userstats_total_kudos {total_kudos}")
+                lines.append("")
+
+                # Total ++ kudos
+                total_kudos_plusplus = await self.app.db.get_total_kudos_plusplus()
                 lines.append("# HELP userstats_total_kudos_plusplus Total ++ kudos given")
                 lines.append("# TYPE userstats_total_kudos_plusplus counter")
-                lines.append(f"userstats_total_kudos_plusplus {total_kudos}")
+                lines.append(f"userstats_total_kudos_plusplus {total_kudos_plusplus}")
+                lines.append("")
+
+                # Total phrase kudos
+                total_kudos_phrases = await self.app.db.get_total_kudos_phrases()
+                lines.append("# HELP userstats_total_kudos_phrases Total phrase-based kudos given")
+                lines.append("# TYPE userstats_total_kudos_phrases counter")
+                lines.append(f"userstats_total_kudos_phrases {total_kudos_phrases}")
                 lines.append("")
 
                 # Total emote usage

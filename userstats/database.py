@@ -652,6 +652,25 @@ class StatsDatabase:
 
         return await asyncio.get_event_loop().run_in_executor(None, _get)
 
+    async def get_total_kudos_phrases(self) -> int:
+        """Get total phrase-based kudos count."""
+
+        def _get():
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT SUM(kudos_count) FROM kudos_phrases")
+            result = cursor.fetchone()[0]
+            conn.close()
+            return result or 0
+
+        return await asyncio.get_event_loop().run_in_executor(None, _get)
+
+    async def get_total_kudos(self) -> int:
+        """Get total kudos count (both ++ and phrase-based)."""
+        plusplus = await self.get_total_kudos_plusplus()
+        phrases = await self.get_total_kudos_phrases()
+        return plusplus + phrases
+
     async def get_total_emote_usage(self) -> int:
         """Get total emote usage count."""
 
