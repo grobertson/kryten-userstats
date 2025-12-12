@@ -5,6 +5,20 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.11] - 2025-12-12
+
+### Changed
+
+- **Updated kryten-py to v0.8.1** - Major version update from 0.5.9
+  - Includes lifecycle integration, service discovery
+  - Fixed event dispatching and handler invocation
+  - Better NATS subject pattern matching
+
+### Fixed
+
+- **Chat message handler logging** - Made message preview safe for None values
+  - Prevents potential exception when event.message is empty
+
 ## [0.4.10] - 2025-12-12
 
 ### Added

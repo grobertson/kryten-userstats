@@ -374,7 +374,9 @@ class UserStatsApp:
     async def _handle_chat_message(self, event: ChatMessageEvent) -> None:
         """Handle chat message event."""
         try:
-            self.logger.debug(f"Chat message from {event.username} in {event.channel}: {event.message[:50]}")
+            # Safe message preview for logging
+            msg_preview = (event.message or "")[:50] if event.message else "(no message)"
+            self.logger.debug(f"Chat handler called: {event.username} in {event.channel}: {msg_preview}")
 
             # Track user
             await self.db.track_user(event.username)
