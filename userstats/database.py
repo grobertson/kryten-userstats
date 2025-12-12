@@ -301,16 +301,52 @@ class StatsDatabase:
     async def save_population_snapshot(
         self, channel: str, domain: str, connected_count: int, chat_count: int
     ) -> None:
-        """Save channel population snapshot."""
-        now = datetime.now(UTC).isoformat()
-
+        """Save channel population snapshot and update water marks."""
         def _save():
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
+            timestamp = datetime.now(UTC).isoformat()
+
+            # Save snapshot
             cursor.execute("""
                 INSERT INTO population_snapshots (channel, domain, timestamp, connected_count, chat_count)
                 VALUES (?, ?, ?, ?, ?)
-            """, (channel, domain, now, connected_count, chat_count))
+            """, (channel, domain, timestamp, connected_count, chat_count))
+
+            # Check for high water mark (last 24 hours)
+            cursor.execute("""
+                SELECT MAX(connected_count) as max_count FROM population_snapshots
+                WHERE channel = ? AND domain = ?
+                AND datetime(timestamp) >= datetime('now', '-1 day')
+            """, (channel, domain))
+            result = cursor.fetchone()
+            max_count = result[0] if result else 0
+
+            if connected_count >= max_count:
+                # New high water mark
+                cursor.execute("""
+                    INSERT OR REPLACE INTO population_watermarks
+                    (channel, domain, timestamp, total_users, chat_users, is_high_mark)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                """, (channel, domain, timestamp, connected_count, chat_count))
+
+            # Check for low water mark (last 24 hours)
+            cursor.execute("""
+                SELECT MIN(connected_count) as min_count FROM population_snapshots
+                WHERE channel = ? AND domain = ?
+                AND datetime(timestamp) >= datetime('now', '-1 day')
+            """, (channel, domain))
+            result = cursor.fetchone()
+            min_count = result[0] if result else float('inf')
+
+            if connected_count <= min_count:
+                # New low water mark
+                cursor.execute("""
+                    INSERT OR REPLACE INTO population_watermarks
+                    (channel, domain, timestamp, total_users, chat_users, is_high_mark)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                """, (channel, domain, timestamp, connected_count, chat_count))
+
             conn.commit()
             conn.close()
 
@@ -781,75 +817,6 @@ class StatsDatabase:
             return rows
 
         return await asyncio.get_event_loop().run_in_executor(None, _get)
-
-    async def save_population_snapshot(self, channel: str, domain: str, connected_count: int, chat_count: int) -> None:
-        """Save population snapshot."""
-        def _save():
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            timestamp = datetime.now(UTC).isoformat()
-
-            cursor.execute("""
-                INSERT INTO population_snapshots (channel, domain, timestamp, connected_count, chat_count)
-                VALUES (?, ?, ?, ?, ?)
-            """, (channel, domain, timestamp, connected_count, chat_count))
-
-            conn.commit()
-            conn.close()
-
-        await asyncio.get_event_loop().run_in_executor(None, _save)
-
-    async def save_population_snapshot(self, channel: str, domain: str, connected_count: int, chat_count: int) -> None:
-        """Save population snapshot and check for water marks."""
-        def _save():
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            timestamp = datetime.now(UTC).isoformat()
-
-            # Save snapshot
-            cursor.execute("""
-                INSERT INTO population_snapshots (channel, domain, timestamp, connected_count, chat_count)
-                VALUES (?, ?, ?, ?, ?)
-            """, (channel, domain, timestamp, connected_count, chat_count))
-
-            # Check for high water mark (last 24 hours)
-            cursor.execute("""
-                SELECT MAX(connected_count) as max_count FROM population_snapshots
-                WHERE channel = ? AND domain = ?
-                AND datetime(timestamp) >= datetime('now', '-1 day')
-            """, (channel, domain))
-            result = cursor.fetchone()
-            max_count = result[0] if result else 0
-
-            if connected_count >= max_count:
-                # New high water mark
-                cursor.execute("""
-                    INSERT OR REPLACE INTO population_watermarks
-                    (channel, domain, timestamp, total_users, chat_users, is_high_mark)
-                    VALUES (?, ?, ?, ?, ?, 1)
-                """, (channel, domain, timestamp, connected_count, chat_count))
-
-            # Check for low water mark (last 24 hours)
-            cursor.execute("""
-                SELECT MIN(connected_count) as min_count FROM population_snapshots
-                WHERE channel = ? AND domain = ?
-                AND datetime(timestamp) >= datetime('now', '-1 day')
-            """, (channel, domain))
-            result = cursor.fetchone()
-            min_count = result[0] if result else float('inf')
-
-            if connected_count <= min_count:
-                # New low water mark
-                cursor.execute("""
-                    INSERT OR REPLACE INTO population_watermarks
-                    (channel, domain, timestamp, total_users, chat_users, is_high_mark)
-                    VALUES (?, ?, ?, ?, ?, 0)
-                """, (channel, domain, timestamp, connected_count, chat_count))
-
-            conn.commit()
-            conn.close()
-
-        await asyncio.get_event_loop().run_in_executor(None, _save)
 
     async def get_water_marks(self, channel: str, domain: str, days: int = None) -> dict[str, Any]:
         """Get high and low water marks for user population.

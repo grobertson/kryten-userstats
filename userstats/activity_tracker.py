@@ -1,6 +1,5 @@
 """User activity tracker for monitoring join/leave times and AFK status."""
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -159,40 +158,3 @@ class ActivityTracker:
 
             session.is_afk = False
             session.afk_start_time = None
-
-    async def _periodic_afk_check(self) -> None:
-        """Periodically check for AFK users."""
-        while self._running:
-            try:
-                await asyncio.sleep(60)  # Check every minute
-
-                now = datetime.now(UTC)
-                for session in self._sessions.values():
-                    if not session.is_afk:
-                        idle_seconds = (now - session.last_activity).total_seconds()
-                        if idle_seconds >= self.afk_threshold:
-                            session.is_afk = True
-                            self.logger.debug(
-                                f"User {session.username} marked as AFK after {idle_seconds}s idle"
-                            )
-
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                self.logger.error(f"Error in AFK check: {e}", exc_info=True)
-
-    def get_active_sessions(self) -> dict[tuple[str, str], list[str]]:
-        """Get all active sessions grouped by (domain, channel).
-
-        Returns:
-            Dict mapping (domain, channel) to list of active usernames
-        """
-        result: dict[tuple[str, str], list[str]] = {}
-
-        for (domain, channel, username), session in self._sessions.items():
-            key = (domain, channel)
-            if key not in result:
-                result[key] = []
-            result[key].append(username)
-
-        return result
