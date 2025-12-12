@@ -1,4 +1,8 @@
 {
+  "service": {
+    "name": "userstats",
+    "version": "1.0.0"
+  },
   "nats": {
     "servers": ["nats://localhost:4222"],
     "user": "${NATS_USER}",

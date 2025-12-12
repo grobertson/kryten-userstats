@@ -5,9 +5,9 @@ import json
 import logging
 import signal
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
-from kryten import KrytenClient, ChatMessageEvent, UserJoinEvent, UserLeaveEvent, ChangeMediaEvent
+from kryten import KrytenClient, ChatMessageEvent, UserJoinEvent, UserLeaveEvent, ChangeMediaEvent, LifecycleEventPublisher
 
 from .database import StatsDatabase
 from .activity_tracker import ActivityTracker
@@ -46,12 +46,14 @@ class UserStatsApp:
         self.emote_detector: Optional[EmoteDetector] = None
         self.metrics_server: Optional[MetricsServer] = None
         self.nats_publisher: Optional[StatsPublisher] = None
+        self.lifecycle: Optional[LifecycleEventPublisher] = None
         
         # State
         self._running = False
         self._shutdown_event = asyncio.Event()
         self._snapshot_task: Optional[asyncio.Task] = None
         self._current_media = {}  # Track current media by channel: {channel: {title, type, id}}
+        self._start_time: Optional[float] = None
         
         # Load configuration
         self._load_config()
@@ -76,9 +78,9 @@ class UserStatsApp:
         
         try:
             # Construct bucket prefix to match Kryten-Robot naming
-            # Format: kryten_{channel}_<type>
-            # Channel name must be lowercase
-            bucket_prefix = f"kryten_{channel.lower()}"
+            # Format: kryten_{channel}_{type}
+            # Channel name is case-sensitive
+            bucket_prefix = f"kryten_{channel}"
             
             # Load userlist
             try:
@@ -215,6 +217,43 @@ class UserStatsApp:
         # Connect to NATS
         await self.client.connect()
         
+        # Track start time for uptime
+        import time
+        self._start_time = time.time()
+        
+        # Initialize lifecycle publisher for service discovery
+        service_name = self.config.get("service", {}).get("name", "userstats")
+        service_version = self.config.get("service", {}).get("version", "1.0.0")
+        
+        self.lifecycle = LifecycleEventPublisher(
+            service_name=service_name,
+            nats_client=self.client._nats,
+            logger=self.logger,
+            version=service_version,
+        )
+        await self.lifecycle.start()
+        
+        # Publish startup event for service discovery
+        await self.lifecycle.publish_startup(
+            channels_configured=len(self.config.get("channels", [])),
+            metrics_port=self.config.get("metrics", {}).get("port", 28282),
+        )
+        self.logger.info("Published startup lifecycle event")
+        
+        # Subscribe to discovery poll - re-announce when kryten-robot requests it
+        await self.client._nats.subscribe(
+            "kryten.service.discovery.poll",
+            cb=self._handle_discovery_poll
+        )
+        self.logger.info("Subscribed to kryten.service.discovery.poll")
+        
+        # Subscribe to robot startup - re-announce when robot starts
+        await self.client._nats.subscribe(
+            "kryten.lifecycle.robot.startup",
+            cb=self._handle_robot_startup
+        )
+        self.logger.info("Subscribed to kryten.lifecycle.robot.startup")
+        
         # Load initial state from KV stores after connection
         # This gives us the full channel state, not just deltas
         for channel_config in self.config.get("channels", []):
@@ -249,6 +288,17 @@ class UserStatsApp:
             
         self.logger.info("Stopping User Statistics Tracker")
         self._running = False
+        
+        # Publish shutdown lifecycle event before disconnecting
+        if self.lifecycle:
+            import time
+            uptime = time.time() - self._start_time if self._start_time else 0
+            await self.lifecycle.publish_shutdown(
+                reason="Normal shutdown",
+                uptime_seconds=uptime,
+            )
+            await self.lifecycle.stop()
+            self.logger.info("Published shutdown lifecycle event")
         
         # Stop client event loop first
         if self.client:
@@ -458,6 +508,42 @@ class UserStatsApp:
             
         except Exception as e:
             self.logger.error(f"Error handling setAFK: {e}", exc_info=True)
+            
+    async def _handle_discovery_poll(self, msg: Any) -> None:
+        """Handle discovery poll request.
+        
+        Re-announces the service when Kryten-Robot sends a discovery poll.
+        This allows the service registry to be rebuilt after robot restarts.
+        
+        Args:
+            msg: NATS message (ignored, just triggers re-announcement)
+        """
+        self.logger.info("Discovery poll received, re-announcing service")
+        
+        if self.lifecycle:
+            await self.lifecycle.publish_startup(
+                channels_configured=len(self.config.get("channels", [])),
+                metrics_port=self.config.get("metrics", {}).get("port", 28282),
+                re_announcement=True,
+            )
+    
+    async def _handle_robot_startup(self, msg: Any) -> None:
+        """Handle robot startup notification.
+        
+        Re-announces the service when Kryten-Robot starts up.
+        This ensures the robot knows about all running services.
+        
+        Args:
+            msg: NATS message (ignored, just triggers re-announcement)
+        """
+        self.logger.info("Robot startup detected, re-announcing service")
+        
+        if self.lifecycle:
+            await self.lifecycle.publish_startup(
+                channels_configured=len(self.config.get("channels", [])),
+                metrics_port=self.config.get("metrics", {}).get("port", 28282),
+                re_announcement=True,
+            )
             
     async def _periodic_snapshots(self, interval: int) -> None:
         """Periodically save population snapshots."""

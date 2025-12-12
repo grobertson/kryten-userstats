@@ -38,10 +38,25 @@ $RequirementsFile = Join-Path $ScriptDir "requirements.txt"
 $ConfigPath = Join-Path $ScriptDir $ConfigFile
 
 # Color output functions
-function Write-Success { param($Message) Write-Host "✓ $Message" -ForegroundColor Green }
-function Write-Info { param($Message) Write-Host "ℹ $Message" -ForegroundColor Cyan }
-function Write-Warning { param($Message) Write-Host "⚠ $Message" -ForegroundColor Yellow }
-function Write-ErrorMsg { param($Message) Write-Host "✗ $Message" -ForegroundColor Red }
+function Write-Success { 
+    param([string]$Message) 
+    Write-Host "✓ $Message" -ForegroundColor Green 
+}
+
+function Write-Info { 
+    param([string]$Message) 
+    Write-Host "ℹ $Message" -ForegroundColor Cyan 
+}
+
+function Write-Warning { 
+    param([string]$Message) 
+    Write-Host "⚠ $Message" -ForegroundColor Yellow 
+}
+
+function Write-ErrorMsg { 
+    param([string]$Message) 
+    Write-Host "✗ $Message" -ForegroundColor Red 
+}
 
 # Check if Python is available
 function Test-PythonAvailable {
