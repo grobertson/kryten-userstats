@@ -578,6 +578,26 @@ class StatsDatabase:
 
         return await asyncio.get_event_loop().run_in_executor(None, _resolve)
 
+    async def user_exists(self, username: str) -> bool:
+        """Check if a username exists in the users table.
+        
+        Args:
+            username: Username to check
+            
+        Returns:
+            True if user exists, False otherwise
+        """
+
+        def _exists():
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM users WHERE username = ? LIMIT 1", (username,))
+            exists = cursor.fetchone() is not None
+            conn.close()
+            return exists
+
+        return await asyncio.get_event_loop().run_in_executor(None, _exists)
+
     # ===== Query methods for metrics and NATS endpoints =====
 
     async def get_total_users(self) -> int:

@@ -330,15 +330,23 @@ class UserStatsApp:
             plusplus_users = self.kudos_detector.detect_plusplus_kudos(event.message)
             for username in plusplus_users:
                 resolved = await self.db.resolve_username(username)
-                await self.db.increment_kudos_plusplus(resolved, event.channel, event.domain)
-                self.logger.info(f"[KUDOS] ++ for '{resolved}' from '{event.username}' in {event.channel}")
+                # Only award kudos if the user exists in the userlist
+                if await self.db.user_exists(resolved):
+                    await self.db.increment_kudos_plusplus(resolved, event.channel, event.domain)
+                    self.logger.info(f"[KUDOS] ++ for '{resolved}' from '{event.username}' in {event.channel}")
+                else:
+                    self.logger.debug(f"[KUDOS] Ignored ++ for unknown user '{resolved}' from '{event.username}'")
 
             # Check for phrase kudos
             phrase_kudos = self.kudos_detector.detect_phrase_kudos(event.message)
             for username, phrase in phrase_kudos:
                 resolved = await self.db.resolve_username(username)
-                await self.db.increment_kudos_phrase(resolved, event.channel, event.domain, phrase)
-                self.logger.info(f"[KUDOS] '{phrase}' for '{resolved}' from '{event.username}' in {event.channel}")
+                # Only award kudos if the user exists in the userlist
+                if await self.db.user_exists(resolved):
+                    await self.db.increment_kudos_phrase(resolved, event.channel, event.domain, phrase)
+                    self.logger.info(f"[KUDOS] '{phrase}' for '{resolved}' from '{event.username}' in {event.channel}")
+                else:
+                    self.logger.debug(f"[KUDOS] Ignored '{phrase}' for unknown user '{resolved}' from '{event.username}'")
 
             # Check for emotes
             emotes = self.emote_detector.detect_emotes(event.message)
