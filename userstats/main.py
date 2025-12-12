@@ -449,14 +449,27 @@ class UserStatsApp:
         try:
             # emotelist events come as RawEvent (no typed conversion in kryten-py)
             # Extract emote names from payload
-            emote_list = event.payload if hasattr(event, 'payload') else event
+            emote_list = getattr(event, 'payload', None) or event
+            if emote_list is None:
+                self.logger.debug("Received empty emote list event")
+                return
+
             if isinstance(emote_list, list):
-                emote_names = [e.get("name") for e in emote_list if isinstance(e, dict) and e.get("name")]
-                self.emote_detector.set_emote_list(emote_names)
+                emote_names = [
+                    e.get("name") for e in emote_list
+                    if isinstance(e, dict) and e.get("name")
+                ]
+                if emote_names:
+                    self.emote_detector.set_emote_list(emote_names)
+                else:
+                    self.logger.debug("No valid emote names found in list")
             elif isinstance(emote_list, dict):
                 # Sometimes emotes are in a dict format
                 emote_names = list(emote_list.keys())
-                self.emote_detector.set_emote_list(emote_names)
+                if emote_names:
+                    self.emote_detector.set_emote_list(emote_names)
+            else:
+                self.logger.warning(f"Unexpected emote list format: {type(emote_list)}")
 
         except Exception as e:
             self.logger.error(f"Error handling emote list: {e}", exc_info=True)
@@ -491,14 +504,17 @@ class UserStatsApp:
         Args:
             msg: NATS message (ignored, just triggers re-announcement)
         """
-        self.logger.info("Robot startup detected, re-announcing service")
+        try:
+            self.logger.info("Robot startup detected, re-announcing service")
 
-        if self.client and self.client.lifecycle:
-            await self.client.lifecycle.publish_startup(
-                channels_configured=len(self.config.get("channels", [])),
-                metrics_port=self.config.get("metrics", {}).get("port", 28282),
-                re_announcement=True,
-            )
+            if self.client and self.client.lifecycle:
+                await self.client.lifecycle.publish_startup(
+                    channels_configured=len(self.config.get("channels", [])),
+                    metrics_port=self.config.get("metrics", {}).get("port", 28282),
+                    re_announcement=True,
+                )
+        except Exception as e:
+            self.logger.error(f"Error handling robot startup: {e}", exc_info=True)
 
     async def _periodic_snapshots(self, interval: int) -> None:
         """Periodically save population snapshots."""

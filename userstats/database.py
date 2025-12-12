@@ -631,7 +631,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT total_seconds, active_seconds FROM user_activity
+                SELECT total_time_seconds, not_afk_time_seconds FROM user_activity
                 WHERE username = ? AND channel = ? AND domain = ?
             """, (username, channel, domain))
             row = cursor.fetchone()
@@ -647,7 +647,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT channel, total_seconds, active_seconds FROM user_activity
+                SELECT channel, total_time_seconds, not_afk_time_seconds FROM user_activity
                 WHERE username = ? AND domain = ?
             """, (username, domain))
             rows = [dict(row) for row in cursor.fetchall()]
@@ -662,7 +662,7 @@ class StatsDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT SUM(count) FROM kudos_plusplus
+                SELECT SUM(kudos_count) FROM kudos_plusplus
                 WHERE username = ? AND domain = ?
             """, (username, domain))
             result = cursor.fetchone()[0]
@@ -678,7 +678,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT phrase, SUM(count) as count FROM kudos_phrases
+                SELECT phrase, SUM(kudos_count) as count FROM kudos_phrases
                 WHERE username = ? AND domain = ?
                 GROUP BY phrase
                 ORDER BY count DESC
@@ -696,7 +696,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT emote, SUM(count) as count FROM emote_usage
+                SELECT emote, SUM(usage_count) as count FROM emote_usage
                 WHERE username = ? AND domain = ?
                 GROUP BY emote
                 ORDER BY count DESC
@@ -750,7 +750,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT timestamp, title, media_type, media_id FROM media_changes
+                SELECT timestamp, media_title, media_type, media_id FROM media_changes
                 WHERE channel = ? AND domain = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -787,7 +787,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT username, SUM(count) as count FROM kudos_plusplus
+                SELECT username, SUM(kudos_count) as count FROM kudos_plusplus
                 WHERE domain = ?
                 GROUP BY username
                 ORDER BY count DESC
@@ -806,7 +806,7 @@ class StatsDatabase:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT emote, SUM(count) as count FROM emote_usage
+                SELECT emote, SUM(usage_count) as count FROM emote_usage
                 WHERE domain = ?
                 GROUP BY emote
                 ORDER BY count DESC
