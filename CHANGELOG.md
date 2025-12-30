@@ -5,6 +5,58 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2025-07-27
+
+### Changed
+
+- **Updated kryten-py to 0.9.7**: Fixes NATS KV store configuration conflict
+  - Previous versions could create KV buckets with default config
+  - This conflicted with kryten-robot's specific bucket configuration
+  - Now properly binds to existing buckets only
+
+## [0.5.5] - 2025-12-14
+
+### Changed
+
+- **Updated Limits Handling**: Improved `channel.all_stats` query to properly handle limits from CLI
+  - Now correctly reads limits from `limits` dict in request
+  - Updated defaults: top_users=20, media_history=15, leaderboards=10
+  - Aligns with kryten-cli 2.3.3 display improvements
+
+## [0.5.4] - 2025-12-14
+
+### Added
+
+- **Events and Commands Tracking**: Added counters for events_processed and commands_processed
+  - Tracks all CyTube events handled (chat, joins, leaves, media changes, etc.)
+  - Tracks all NATS command requests processed
+  - Displayed in kryten-cli `userstats all` output
+
+## [0.5.3] - 2025-12-13
+
+### Changed
+
+- Re-release of 0.5.2 with version sync fix included in package
+
+## [0.5.2] - 2025-12-13
+
+### Fixed
+
+- **Database locking**: Fixed `sqlite3.OperationalError: database is locked` errors
+  - Enabled WAL (Write-Ahead Logging) mode for better concurrency
+  - Increased busy timeout to 30 seconds
+  - All database connections now use consistent settings via `_get_connection()` helper
+- **Version sync**: Service version now sourced from `__version__` in `__init__.py`
+  - Version reported to kryten-robot stays in sync with package version
+  - Config version is overridden at runtime to match package version
+
+## [0.5.1] - 2025-12-13
+
+### Changed
+
+- **Sync release**: Version sync with kryten ecosystem (kryten-py 0.9.4)
+- **Updated kryten-py dependency** to >=0.9.4
+
 ## [0.4.11] - 2025-12-12
 
 ### Changed

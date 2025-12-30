@@ -29,6 +29,17 @@ class StatsDatabase:
         self.db_path = Path(db_path)
         self.logger = logger
 
+    def _get_connection(self) -> sqlite3.Connection:
+        """Create a database connection with proper settings for concurrency.
+        
+        Returns:
+            SQLite connection with WAL mode and increased busy timeout
+        """
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        # Enable WAL mode for better concurrency
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
+
     async def initialize(self) -> None:
         """Initialize database and create tables.
 
@@ -58,7 +69,7 @@ class StatsDatabase:
 
     def _create_tables(self) -> None:
         """Create all required tables."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         # Users table - track all seen usernames
@@ -280,7 +291,7 @@ class StatsDatabase:
         now = datetime.now(timezone.utc).isoformat()
 
         def _track():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -299,7 +310,7 @@ class StatsDatabase:
         """Increment public message count for user in channel."""
 
         def _increment():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -318,7 +329,7 @@ class StatsDatabase:
         """Increment PM count for user."""
 
         def _increment():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -337,7 +348,7 @@ class StatsDatabase:
         """Save channel population snapshot and update water marks."""
 
         def _save():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             timestamp = datetime.now(timezone.utc).isoformat()
 
@@ -404,20 +415,37 @@ class StatsDatabase:
     async def log_media_change(
         self, channel: str, domain: str, title: str, media_type: str = "", media_id: str = ""
     ) -> None:
-        """Log media title change."""
+        """Log media title change only if it differs from the most recent recorded media."""
         now = datetime.now(timezone.utc).isoformat()
 
         def _log():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
+            
+            # Check the most recent media entry for this channel
             cursor.execute(
                 """
-                INSERT INTO media_changes (channel, domain, timestamp, media_title, media_type, media_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                SELECT media_title, media_type, media_id
+                FROM media_changes
+                WHERE channel = ? AND domain = ?
+                ORDER BY timestamp DESC
+                LIMIT 1
             """,
-                (channel, domain, now, title, media_type, media_id),
+                (channel, domain),
             )
-            conn.commit()
+            row = cursor.fetchone()
+            
+            # Only insert if different from most recent entry (or if no previous entry)
+            if not row or row[0] != title or row[1] != media_type or row[2] != media_id:
+                cursor.execute(
+                    """
+                    INSERT INTO media_changes (channel, domain, timestamp, media_title, media_type, media_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    (channel, domain, now, title, media_type, media_id),
+                )
+                conn.commit()
+            
             conn.close()
 
         await asyncio.get_event_loop().run_in_executor(None, _log)
@@ -428,7 +456,7 @@ class StatsDatabase:
         """Update user activity time."""
 
         def _update():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -449,7 +477,7 @@ class StatsDatabase:
         """Increment emote usage count."""
 
         def _increment():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -468,7 +496,7 @@ class StatsDatabase:
         """Increment ++ kudos for user."""
 
         def _increment():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -487,7 +515,7 @@ class StatsDatabase:
         """Increment phrase-based kudos for user."""
 
         def _increment():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -506,7 +534,7 @@ class StatsDatabase:
         """Get all aliases for a username."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT alias FROM user_aliases WHERE username = ?", (username,))
             aliases = [row[0] for row in cursor.fetchall()]
@@ -516,17 +544,22 @@ class StatsDatabase:
         return await asyncio.get_event_loop().run_in_executor(None, _get)
 
     async def add_user_alias(self, username: str, alias: str) -> None:
-        """Add an alias for a username."""
+        """Add an alias for a username.
+
+        Args:
+            username: The canonical username
+            alias: The alias that should resolve to username (stored lowercase)
+        """
 
         def _add():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             try:
                 cursor.execute(
                     """
                     INSERT INTO user_aliases (username, alias) VALUES (?, ?)
                 """,
-                    (username, alias),
+                    (username, alias.lower()),
                 )
                 conn.commit()
             except sqlite3.IntegrityError:
@@ -536,11 +569,179 @@ class StatsDatabase:
 
         await asyncio.get_event_loop().run_in_executor(None, _add)
 
+    async def add_user_alias_checked(self, username: str, alias: str) -> tuple[bool, str]:
+        """Add an alias for a username with status reporting.
+
+        Args:
+            username: The canonical username
+            alias: The alias that should resolve to username (stored lowercase)
+
+        Returns:
+            Tuple of (success, message)
+        """
+
+        def _add():
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            alias_lower = alias.lower()
+            try:
+                # Check if alias already exists for this user
+                cursor.execute(
+                    "SELECT username FROM user_aliases WHERE alias = ?",
+                    (alias_lower,),
+                )
+                existing = cursor.fetchone()
+                if existing:
+                    if existing[0] == username:
+                        return (False, f"Alias '{alias}' already exists for user '{username}'")
+                    return (False, f"Alias '{alias}' is already assigned to user '{existing[0]}'")
+
+                cursor.execute(
+                    "INSERT INTO user_aliases (username, alias) VALUES (?, ?)",
+                    (username, alias_lower),
+                )
+                conn.commit()
+                return (True, f"Added alias '{alias}' for user '{username}'")
+            finally:
+                conn.close()
+
+        return await asyncio.get_event_loop().run_in_executor(None, _add)
+
+    async def delete_user_alias(self, username: str, alias: str) -> tuple[bool, str]:
+        """Delete an alias for a username.
+
+        Args:
+            username: The canonical username
+            alias: The alias to remove
+
+        Returns:
+            Tuple of (success, message)
+        """
+
+        def _delete():
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            alias_lower = alias.lower()
+            try:
+                # Check if alias exists
+                cursor.execute(
+                    "SELECT username FROM user_aliases WHERE alias = ?",
+                    (alias_lower,),
+                )
+                existing = cursor.fetchone()
+                if not existing:
+                    return (False, f"Alias '{alias}' not found")
+                if existing[0] != username:
+                    return (False, f"Alias '{alias}' belongs to user '{existing[0]}', not '{username}'")
+
+                cursor.execute(
+                    "DELETE FROM user_aliases WHERE username = ? AND alias = ?",
+                    (username, alias_lower),
+                )
+                conn.commit()
+                return (True, f"Deleted alias '{alias}' for user '{username}'")
+            finally:
+                conn.close()
+
+        return await asyncio.get_event_loop().run_in_executor(None, _delete)
+
+    async def update_user_alias(self, old_alias: str, new_alias: str) -> tuple[bool, str]:
+        """Update an existing alias to a new value.
+
+        Args:
+            old_alias: The current alias
+            new_alias: The new alias value
+
+        Returns:
+            Tuple of (success, message)
+        """
+
+        def _update():
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            old_lower = old_alias.lower()
+            new_lower = new_alias.lower()
+            try:
+                # Check if old alias exists
+                cursor.execute(
+                    "SELECT username FROM user_aliases WHERE alias = ?",
+                    (old_lower,),
+                )
+                existing = cursor.fetchone()
+                if not existing:
+                    return (False, f"Alias '{old_alias}' not found")
+
+                username = existing[0]
+
+                # Check if new alias already exists
+                cursor.execute(
+                    "SELECT username FROM user_aliases WHERE alias = ?",
+                    (new_lower,),
+                )
+                conflict = cursor.fetchone()
+                if conflict:
+                    return (False, f"Alias '{new_alias}' is already assigned to user '{conflict[0]}'")
+
+                cursor.execute(
+                    "UPDATE user_aliases SET alias = ? WHERE alias = ?",
+                    (new_lower, old_lower),
+                )
+                conn.commit()
+                return (True, f"Updated alias '{old_alias}' to '{new_alias}' for user '{username}'")
+            finally:
+                conn.close()
+
+        return await asyncio.get_event_loop().run_in_executor(None, _update)
+
+    async def get_all_aliases(self) -> dict[str, list[str]]:
+        """Get all username aliases grouped by username.
+
+        Returns:
+            Dict mapping usernames to their list of aliases
+        """
+
+        def _get():
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT username, alias FROM user_aliases ORDER BY username, alias")
+            results: dict[str, list[str]] = {}
+            for username, alias in cursor.fetchall():
+                if username not in results:
+                    results[username] = []
+                results[username].append(alias)
+            conn.close()
+            return results
+
+        return await asyncio.get_event_loop().run_in_executor(None, _get)
+
+    async def find_alias_owner(self, alias: str) -> str | None:
+        """Find which username owns a specific alias.
+
+        Args:
+            alias: The alias to look up
+
+        Returns:
+            The username that owns the alias, or None if not found
+        """
+
+        def _find():
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT username FROM user_aliases WHERE alias = ?",
+                (alias.lower(),),
+            )
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] if result else None
+
+        return await asyncio.get_event_loop().run_in_executor(None, _find)
+
     async def get_trigger_phrases(self) -> list[str]:
         """Get all kudos trigger phrases."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT phrase FROM kudos_trigger_phrases")
             phrases = [row[0] for row in cursor.fetchall()]
@@ -553,7 +754,7 @@ class StatsDatabase:
         """Add a kudos trigger phrase."""
 
         def _add():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             try:
                 cursor.execute("INSERT INTO kudos_trigger_phrases (phrase) VALUES (?)", (phrase,))
@@ -569,7 +770,7 @@ class StatsDatabase:
         """Resolve alias to canonical username, or return name if not an alias."""
 
         def _resolve():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT username FROM user_aliases WHERE alias = ?", (name.lower(),))
             row = cursor.fetchone()
@@ -579,7 +780,7 @@ class StatsDatabase:
         return await asyncio.get_event_loop().run_in_executor(None, _resolve)
 
     async def user_exists(self, username: str) -> bool:
-        """Check if a username exists in the users table.
+        """Check if a username exists in the users table (case-insensitive).
 
         Args:
             username: Username to check
@@ -589,14 +790,40 @@ class StatsDatabase:
         """
 
         def _exists():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM users WHERE username = ? LIMIT 1", (username,))
+            cursor.execute(
+                "SELECT 1 FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1",
+                (username,),
+            )
             exists = cursor.fetchone() is not None
             conn.close()
             return exists
 
         return await asyncio.get_event_loop().run_in_executor(None, _exists)
+
+    async def get_canonical_username(self, username: str) -> str | None:
+        """Get the canonical (correctly-cased) username from the users table.
+
+        Args:
+            username: Username to look up (case-insensitive)
+
+        Returns:
+            The correctly-cased username if found, None otherwise
+        """
+
+        def _get():
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT username FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1",
+                (username,),
+            )
+            row = cursor.fetchone()
+            conn.close()
+            return row[0] if row else None
+
+        return await asyncio.get_event_loop().run_in_executor(None, _get)
 
     # ===== Query methods for metrics and NATS endpoints =====
 
@@ -604,7 +831,7 @@ class StatsDatabase:
         """Get total number of tracked users."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM users")
             count = cursor.fetchone()[0]
@@ -617,7 +844,7 @@ class StatsDatabase:
         """Get total message count across all channels."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT SUM(message_count) FROM message_counts")
             result = cursor.fetchone()[0]
@@ -630,7 +857,7 @@ class StatsDatabase:
         """Get total PM count."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT SUM(pm_count) FROM pm_counts")
             result = cursor.fetchone()[0]
@@ -643,7 +870,7 @@ class StatsDatabase:
         """Get total ++ kudos count."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT SUM(kudos_count) FROM kudos_plusplus")
             result = cursor.fetchone()[0]
@@ -656,7 +883,7 @@ class StatsDatabase:
         """Get total phrase-based kudos count."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT SUM(kudos_count) FROM kudos_phrases")
             result = cursor.fetchone()[0]
@@ -675,7 +902,7 @@ class StatsDatabase:
         """Get total emote usage count."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT SUM(usage_count) FROM emote_usage")
             result = cursor.fetchone()[0]
@@ -688,7 +915,7 @@ class StatsDatabase:
         """Get total media changes logged."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM media_changes")
             count = cursor.fetchone()[0]
@@ -701,7 +928,7 @@ class StatsDatabase:
         """Get message count for a user in a channel."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -720,7 +947,7 @@ class StatsDatabase:
         """Get all message counts for a user across channels."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -741,7 +968,7 @@ class StatsDatabase:
         """Get PM count for a user."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT pm_count FROM pm_counts WHERE username = ?", (username,))
             row = cursor.fetchone()
@@ -754,7 +981,7 @@ class StatsDatabase:
         """Get activity statistics for a user in a channel."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -774,7 +1001,7 @@ class StatsDatabase:
         """Get all activity for a user across channels."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -794,7 +1021,7 @@ class StatsDatabase:
         """Get ++ kudos count for a user."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -813,7 +1040,7 @@ class StatsDatabase:
         """Get phrase kudos for a user."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -835,7 +1062,7 @@ class StatsDatabase:
         """Get emote usage for a user."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -857,13 +1084,13 @@ class StatsDatabase:
         """Get top message senders in a channel."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
                 """
                 SELECT username, message_count as count FROM message_counts
-                WHERE channel = ? AND domain = ?
+                WHERE channel = ? AND domain = ? AND username != '[server]'
                 ORDER BY message_count DESC
                 LIMIT ?
             """,
@@ -879,7 +1106,7 @@ class StatsDatabase:
         """Get recent population snapshots."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -901,7 +1128,7 @@ class StatsDatabase:
         """Get recent media changes."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -923,13 +1150,13 @@ class StatsDatabase:
         """Get global message leaderboard across all channels."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
                 """
                 SELECT username, SUM(message_count) as count FROM message_counts
-                WHERE domain = ?
+                WHERE domain = ? AND username != '[server]'
                 GROUP BY username
                 ORDER BY count DESC
                 LIMIT ?
@@ -943,21 +1170,31 @@ class StatsDatabase:
         return await asyncio.get_event_loop().run_in_executor(None, _get)
 
     async def get_global_kudos_leaderboard(self, domain: str, limit: int = 20) -> list[dict[str, Any]]:
-        """Get global kudos leaderboard."""
+        """Get global kudos leaderboard (combines both ++ and phrase-based kudos)."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT username, SUM(kudos_count) as count FROM kudos_plusplus
-                WHERE domain = ?
+                SELECT username, SUM(kudos_count) as count
+                FROM (
+                    SELECT username, SUM(kudos_count) as kudos_count
+                    FROM kudos_plusplus
+                    WHERE domain = ? AND username != '[server]'
+                    GROUP BY username
+                    UNION ALL
+                    SELECT username, SUM(kudos_count) as kudos_count
+                    FROM kudos_phrases
+                    WHERE domain = ? AND username != '[server]'
+                    GROUP BY username
+                )
                 GROUP BY username
                 ORDER BY count DESC
                 LIMIT ?
             """,
-                (domain, limit),
+                (domain, domain, limit),
             )
             rows = [dict(row) for row in cursor.fetchall()]
             conn.close()
@@ -969,7 +1206,7 @@ class StatsDatabase:
         """Get most used emotes."""
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -1001,7 +1238,7 @@ class StatsDatabase:
         """
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
@@ -1049,7 +1286,7 @@ class StatsDatabase:
         """Record a movie vote (1 for upvote, -1 for downvote)."""
 
         def _record():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
             timestamp = datetime.now(timezone.utc).isoformat()
 
@@ -1080,7 +1317,7 @@ class StatsDatabase:
         """
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
@@ -1144,7 +1381,7 @@ class StatsDatabase:
         """
 
         def _get():
-            conn = sqlite3.connect(self.db_path)
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
@@ -1174,3 +1411,4 @@ class StatsDatabase:
             return rows
 
         return await asyncio.get_event_loop().run_in_executor(None, _get)
+

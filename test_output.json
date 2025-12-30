@@ -1,0 +1,6 @@
+{
+  "service": "userstats",
+  "command": "channel.all_stats",
+  "success": false,
+  "error": "'UserStatsApp' object has no attribute '_domain'"
+}

@@ -1,7 +1,6 @@
 {
   "service": {
     "name": "userstats",
-    "version": "0.3.0",
     "enable_lifecycle": true,
     "enable_heartbeat": true,
     "heartbeat_interval": 30,

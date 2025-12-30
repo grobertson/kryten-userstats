@@ -61,6 +61,10 @@ class UserStatsApp:
         self._snapshot_task: asyncio.Task | None = None
         self._current_media: dict[str, dict[str, str]] = {}  # Track current media by channel
         self._start_time: float | None = None
+        
+        # Statistics counters
+        self._events_processed = 0
+        self._commands_processed = 0
 
         # Load configuration
         self._load_config()
@@ -70,7 +74,14 @@ class UserStatsApp:
         with open(self.config_path) as f:
             self.config = json.load(f)
 
+        # Override version from package to ensure it stays in sync
+        from . import __version__
+        if "service" not in self.config:
+            self.config["service"] = {}
+        self.config["service"]["version"] = __version__
+
         self.logger.info(f"Configuration loaded from {self.config_path}")
+        self.logger.info(f"Service version: {__version__}")
 
     @staticmethod
     def _clean_media_title(title: str) -> str:
@@ -371,6 +382,7 @@ class UserStatsApp:
 
     async def _handle_chat_message(self, event: ChatMessageEvent) -> None:
         """Handle chat message event."""
+        self._events_processed += 1
         try:
             # Safe message preview for logging
             msg_preview = (event.message or "")[:50] if event.message else "(no message)"
@@ -389,14 +401,17 @@ class UserStatsApp:
             plusplus_users = self.kudos_detector.detect_plusplus_kudos(event.message)
             for username in plusplus_users:
                 resolved = await self.db.resolve_username(username)
+                if resolved != username:
+                    self.logger.info(f"[KUDOS] Resolved alias '{username}' -> '{resolved}'")
                 # Prevent self-kudos
                 if resolved.lower() == event.username.lower():
                     self.logger.debug(f"[KUDOS] Ignored self-kudos attempt by '{event.username}'")
                     continue
-                # Only award kudos if the user exists in the userlist
-                if await self.db.user_exists(resolved):
-                    await self.db.increment_kudos_plusplus(resolved, event.channel, event.domain)
-                    self.logger.info(f"[KUDOS] ++ for '{resolved}' from '{event.username}' in {event.channel}")
+                # Get canonical username (correct case) from users table
+                canonical = await self.db.get_canonical_username(resolved)
+                if canonical:
+                    await self.db.increment_kudos_plusplus(canonical, event.channel, event.domain)
+                    self.logger.info(f"[KUDOS] ++ for '{canonical}' from '{event.username}' in {event.channel}")
                 else:
                     self.logger.debug(f"[KUDOS] Ignored ++ for unknown user '{resolved}' from '{event.username}'")
 
@@ -404,14 +419,17 @@ class UserStatsApp:
             phrase_kudos = self.kudos_detector.detect_phrase_kudos(event.message)
             for username, phrase in phrase_kudos:
                 resolved = await self.db.resolve_username(username)
+                if resolved != username:
+                    self.logger.info(f"[KUDOS] Resolved alias '{username}' -> '{resolved}'")
                 # Prevent self-kudos
                 if resolved.lower() == event.username.lower():
                     self.logger.debug(f"[KUDOS] Ignored self-kudos attempt by '{event.username}'")
                     continue
-                # Only award kudos if the user exists in the userlist
-                if await self.db.user_exists(resolved):
-                    await self.db.increment_kudos_phrase(resolved, event.channel, event.domain, phrase)
-                    self.logger.info(f"[KUDOS] '{phrase}' for '{resolved}' from '{event.username}' in {event.channel}")
+                # Get canonical username (correct case) from users table
+                canonical = await self.db.get_canonical_username(resolved)
+                if canonical:
+                    await self.db.increment_kudos_phrase(canonical, event.channel, event.domain, phrase)
+                    self.logger.info(f"[KUDOS] '{phrase}' for '{canonical}' from '{event.username}' in {event.channel}")
                 else:
                     self.logger.debug(
                         f"[KUDOS] Ignored '{phrase}' for unknown user '{resolved}' from '{event.username}'"
@@ -450,6 +468,7 @@ class UserStatsApp:
 
     async def _handle_pm(self, event) -> None:
         """Handle private message event."""
+        self._events_processed += 1
         try:
             # PM events come as ChatMessageEvent from kryten-py
             # If it's a ChatMessageEvent, use username attribute
@@ -475,6 +494,7 @@ class UserStatsApp:
 
     async def _handle_user_join(self, event: UserJoinEvent) -> None:
         """Handle user join event."""
+        self._events_processed += 1
         try:
             # Track user
             await self.db.track_user(event.username)
@@ -487,6 +507,7 @@ class UserStatsApp:
 
     async def _handle_user_leave(self, event: UserLeaveEvent) -> None:
         """Handle user leave event."""
+        self._events_processed += 1
         try:
             # Calculate activity time
             times = self.activity_tracker.user_left(event.domain, event.channel, event.username)
@@ -505,6 +526,7 @@ class UserStatsApp:
 
     async def _handle_media_change(self, event: ChangeMediaEvent) -> None:
         """Handle media change event."""
+        self._events_processed += 1
         try:
             self.logger.debug(
                 f"Media change event: title='{event.title}', type={event.media_type}, "
@@ -533,6 +555,7 @@ class UserStatsApp:
 
     async def _handle_emote_list(self, event) -> None:
         """Handle emote list event."""
+        self._events_processed += 1
         try:
             self.logger.info("Received emote list event")
             # emotelist events come as RawEvent (no typed conversion in kryten-py)
@@ -571,6 +594,7 @@ class UserStatsApp:
 
     async def _handle_set_afk(self, event) -> None:
         """Handle setAFK event from CyTube."""
+        self._events_processed += 1
         try:
             # setafk events come as RawEvent (no typed conversion in kryten-py)
             # Extract username and AFK status from payload

@@ -1,7 +1,21 @@
 {
   "aliases": {
     "kevinchrist": ["kc", "kchrist", "kevin"],
-    "exampleuser": ["example", "ex"]
+    "AmbsAce": ["ambs", "amb"],
+    "The_Cinemasochist": ["cine", "cinemasochist"],
+    "activatewindows": ["activate", "aw"],
+    "KGMoon": ["kg", "kraven"],
+    "smoggyvirologist": ["smoggy"],
+    "naten530": ["naten", "nate"],
+    "GiggityGoop": ["giggity", "goop", "gg"],
+    "bitterpill": ["bp", "bitter"],
+    "arborglyph": ["arbor", "glyph"],
+    "SqueezeMeMacaroni": ["squeeze", "macaroni", "mac"],
+    "TacoBelmont": ["taco", "belmont", "tb"],
+    "AidanSaul": ["aidan", "saul"],
+    "FertilityHollis": ["fert", "ferty", "hollis", "fh"],
+    "xTOMSERVOx": ["tom", "servo", "tomservo"],
+    "catRose": ["cat", "rose"]
   },
   "kudos_phrases": [
     "lol",
