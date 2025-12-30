@@ -45,13 +45,13 @@ version = "0.2.0"  # Update this
 Or use Poetry:
 ```bash
 # Bump patch version (0.2.0 -> 0.2.1)
-poetry version patch
+# Use pyproject.toml to manage version patch
 
 # Bump minor version (0.2.0 -> 0.3.0)
-poetry version minor
+# Use pyproject.toml to manage version minor
 
 # Bump major version (0.2.0 -> 1.0.0)
-poetry version major
+# Use pyproject.toml to manage version major
 ```
 
 ### 2. Update CHANGELOG.md
@@ -77,7 +77,7 @@ Remove-Item -Recurse -Force dist
 ### 5. Build Package
 
 ```bash
-poetry build
+uv build
 ```
 
 This creates:
@@ -108,7 +108,7 @@ poetry config repositories.testpypi https://test.pypi.org/legacy/
 poetry config pypi-token.testpypi pypi-your-test-token-here
 
 # Publish to TestPyPI
-poetry publish -r testpypi
+uv publish -r testpypi
 
 # Install from TestPyPI
 pip install --index-url https://test.pypi.org/simple/ kryten-userstats
@@ -121,10 +121,10 @@ python -c "import userstats; print(userstats.__version__)"
 
 ```bash
 # Using configured token
-poetry publish
+uv publish
 
 # Or specify token inline
-poetry publish --username __token__ --password pypi-your-token-here
+uv publish --username __token__ --password pypi-your-token-here
 ```
 
 ### 9. Verify Publication
@@ -179,8 +179,8 @@ jobs:
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         run: |
-          poetry build
-          poetry publish
+          uv build
+          uv publish
 ```
 
 Then:
@@ -194,12 +194,12 @@ Then:
 
 **Check dependencies:**
 ```bash
-poetry check
+uv pip check
 ```
 
 **Update lock file:**
 ```bash
-poetry lock --no-update
+uv lock --no-update
 ```
 
 ### Upload Fails
@@ -211,7 +211,7 @@ poetry config --list | grep pypi-token
 
 **Try with username/password:**
 ```bash
-poetry publish --username __token__ --password pypi-your-token-here
+uv publish --username __token__ --password pypi-your-token-here
 ```
 
 ### Version Already Exists
@@ -252,8 +252,8 @@ Examples:
 
 For testing:
 ```bash
-poetry version prerelease  # 0.2.0 -> 0.2.1-alpha.0
-poetry version prerelease  # 0.2.1-alpha.0 -> 0.2.1-alpha.1
+# Use pyproject.toml to manage version prerelease  # 0.2.0 -> 0.2.1-alpha.0
+# Use pyproject.toml to manage version prerelease  # 0.2.1-alpha.0 -> 0.2.1-alpha.1
 ```
 
 For release candidates:
@@ -274,11 +274,11 @@ version = "0.2.0-rc.1"
 - [ ] Update version in `userstats/__init__.py`
 - [ ] Update `CHANGELOG.md`
 - [ ] Clean `dist/` directory
-- [ ] Run `poetry build`
+- [ ] Run `uv build`
 - [ ] Test locally: `pip install dist/*.whl`
 - [ ] Test CLI: `kryten-userstats --help`
 - [ ] Test import: `python -c "import userstats"`
-- [ ] Publish: `poetry publish`
+- [ ] Publish: `uv publish`
 - [ ] Verify on PyPI
 - [ ] Tag release: `git tag v0.2.0`
 - [ ] Push tag: `git push origin v0.2.0`

@@ -22,7 +22,7 @@ git clone https://github.com/yourusername/kryten-userstats.git
 cd kryten-userstats
 
 # Install with Poetry
-poetry install
+uv sync
 
 # Or with pip
 pip install -e .
@@ -36,7 +36,7 @@ git clone https://github.com/yourusername/kryten-userstats.git
 cd kryten-userstats
 
 # Install with dev dependencies
-poetry install --with dev
+uv sync --with dev
 
 # Activate virtual environment
 poetry shell
@@ -309,7 +309,7 @@ pip install --upgrade kryten-userstats
 ```bash
 cd kryten-userstats
 git pull
-poetry install
+uv sync
 ```
 
 ## Uninstallation
@@ -319,7 +319,7 @@ poetry install
 pip uninstall kryten-userstats
 
 # If installed via poetry
-poetry remove kryten-userstats
+uv remove kryten-userstats
 
 # Remove systemd service
 sudo systemctl stop kryten-userstats
