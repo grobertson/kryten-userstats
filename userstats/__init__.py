@@ -19,7 +19,7 @@ For more information, see:
 - METRICS_IMPLEMENTATION.md for technical details
 """
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("kryten-userstats")

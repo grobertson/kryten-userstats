@@ -15,19 +15,11 @@ async def test():
         "service": "userstats",
         "command": "channel.all_stats",
         # Don't specify channel/domain - let service use defaults
-        "limits": {
-            "top_users": 3,
-            "media_history": 3,
-            "leaderboards": 3
-        }
+        "limits": {"top_users": 3, "media_history": 3, "leaderboards": 3},
     }
 
     try:
-        resp = await nc.request(
-            "kryten.userstats.command",
-            json.dumps(req).encode(),
-            timeout=5.0
-        )
+        resp = await nc.request("kryten.userstats.command", json.dumps(req).encode(), timeout=5.0)
         result = json.loads(resp.data.decode())
         print(json.dumps(result, indent=2))
     except Exception as e:

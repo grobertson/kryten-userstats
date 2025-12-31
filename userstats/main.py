@@ -61,7 +61,7 @@ class UserStatsApp:
         self._snapshot_task: asyncio.Task | None = None
         self._current_media: dict[str, dict[str, str]] = {}  # Track current media by channel
         self._start_time: float | None = None
-        
+
         # Statistics counters
         self._events_processed = 0
         self._commands_processed = 0
@@ -76,6 +76,7 @@ class UserStatsApp:
 
         # Override version from package to ensure it stays in sync
         from . import __version__
+
         if "service" not in self.config:
             self.config["service"] = {}
         self.config["service"]["version"] = __version__

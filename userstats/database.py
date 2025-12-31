@@ -31,7 +31,7 @@ class StatsDatabase:
 
     def _get_connection(self) -> sqlite3.Connection:
         """Create a database connection with proper settings for concurrency.
-        
+
         Returns:
             SQLite connection with WAL mode and increased busy timeout
         """
@@ -421,7 +421,7 @@ class StatsDatabase:
         def _log():
             conn = self._get_connection()
             cursor = conn.cursor()
-            
+
             # Check the most recent media entry for this channel
             cursor.execute(
                 """
@@ -434,7 +434,7 @@ class StatsDatabase:
                 (channel, domain),
             )
             row = cursor.fetchone()
-            
+
             # Only insert if different from most recent entry (or if no previous entry)
             if not row or row[0] != title or row[1] != media_type or row[2] != media_id:
                 cursor.execute(
@@ -445,7 +445,7 @@ class StatsDatabase:
                     (channel, domain, now, title, media_type, media_id),
                 )
                 conn.commit()
-            
+
             conn.close()
 
         await asyncio.get_event_loop().run_in_executor(None, _log)
@@ -1411,4 +1411,3 @@ class StatsDatabase:
             return rows
 
         return await asyncio.get_event_loop().run_in_executor(None, _get)
-
