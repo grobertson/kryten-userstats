@@ -5,6 +5,14 @@ All notable changes to kryten-userstats will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9] - 2025-12-31
+
+### Fixed
+- **CI/CD**: Standardized build and release workflows to use `uv` and trigger on tags.
+- **Linting**: Fixed Ruff, Black, and Mypy issues for clean CI execution.
+- **Types**: Fixed type hint return value in `nats_publisher.py` for `channel.top_users`.
+- **Deps**: Updated dev dependencies to include `types-requests`.
+
 ## [0.5.6] - 2025-07-27
 
 ### Changed
