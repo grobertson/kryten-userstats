@@ -96,9 +96,11 @@ class StatsPublisher:
         # Dispatch to handler
         handler_map = {
             "user.stats": self._handle_user_stats,
+            "user.profile": self._handle_user_profile,
             "user.messages": self._handle_user_messages,
             "user.activity": self._handle_user_activity,
             "user.kudos": self._handle_user_kudos,
+            "stats.global": self._handle_stats_global,
             "channel.top_users": self._handle_channel_top_users,
             "channel.population": self._handle_channel_population,
             "channel.media_history": self._handle_channel_media_history,
@@ -169,6 +171,47 @@ class StatsPublisher:
             stats["all_activity"] = await self.app.db.get_user_all_activity(username, domain)
 
         return stats
+
+    async def _handle_user_profile(self, request: dict) -> dict:
+        """Handle user.profile query - WebUI-friendly alias for comprehensive user stats."""
+        profile = await self._handle_user_stats(request)
+        return {
+            "username": profile.get("username"),
+            "messages": profile.get("messages", 0),
+            "all_messages": profile.get("all_messages", {}),
+            "pms": profile.get("pms", 0),
+            "kudos": {
+                "plusplus": profile.get("kudos_plusplus", 0),
+                "phrases": profile.get("kudos_phrases", 0),
+            },
+            "emotes": profile.get("emotes", {}),
+            "activity": profile.get("activity") or profile.get("all_activity"),
+        }
+
+    async def _handle_stats_global(self, request: dict) -> dict:
+        """Handle stats.global query - channel aggregate stats for dashboard views."""
+        channel = request.get("channel")
+        domain = request.get("domain") or (
+            self.client.config.channels[0].domain if self.client.config.channels else "cytu.be"
+        )
+
+        if not channel:
+            raise ValueError("channel required")
+
+        top_users = await self.app.db.get_top_message_senders(channel, domain, 10)
+        watermarks: dict[str, Any] = await self.app.db.get_water_marks(channel, domain, None)
+        snapshots = await self.app.db.get_recent_population_snapshots(channel, domain, 24)
+
+        return {
+            "channel": channel,
+            "domain": domain,
+            "top_users": top_users,
+            "watermarks": watermarks,
+            "population": {
+                "current": snapshots[0] if snapshots else None,
+                "history": snapshots,
+            },
+        }
 
     async def _handle_user_messages(self, request: dict) -> dict:
         """Handle user.messages query - Get user message history."""
